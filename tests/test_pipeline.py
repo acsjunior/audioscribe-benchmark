@@ -48,6 +48,7 @@ def fake_song(tmp_path) -> SongData:
         interpretacao="Cartola",
         disco="Cartola",
         ano="1976",
+        genero="Samba",
         audio_path=tmp_path / "audio.mp3",
         ground_truth="As rosas não falam",
     )

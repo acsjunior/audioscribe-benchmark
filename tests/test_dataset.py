@@ -10,6 +10,7 @@ autoria: Cartola
 interpretacao: Cartola
 disco: Cartola
 ano: 1976
+genero: Samba
 ---
 As rosas não falam
 Apenas perfumam
@@ -30,6 +31,7 @@ def test_load_dataset(tmp_path):
     assert songs[0].interpretacao == "Cartola"
     assert songs[0].disco == "Cartola"
     assert songs[0].ano == "1976"
+    assert songs[0].genero == "Samba"
     assert songs[0].ground_truth == "As rosas não falam\nApenas perfumam"
 
 

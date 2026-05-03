@@ -15,6 +15,7 @@ def make_result(provider=None, prompt="minimalist", wer=0.3, cer=0.2) -> Experim
         interpretacao="Cartola",
         disco="Cartola",
         ano="1976",
+        genero="Samba",
         whisper_transcription="as rosas nao falam",
         refinement_provider=provider,
         refinement_model="gpt-4o" if provider else None,

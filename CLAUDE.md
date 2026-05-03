@@ -126,6 +126,7 @@ autoria: Cartola
 interpretacao: Cartola
 disco: Cartola
 ano: 1976
+genero: Samba
 ---
 As rosas não falam
 Apenas perfumam

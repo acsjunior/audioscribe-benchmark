@@ -11,6 +11,7 @@ def make_result(**kwargs) -> ExperimentResult:
         interpretacao="Cartola",
         disco="Cartola",
         ano="1976",
+        genero="Samba",
         whisper_transcription="as rosas nao falam",
         refinement_provider=None,
         refinement_model=None,
@@ -30,6 +31,7 @@ def test_song_data_fields():
         interpretacao="Cartola",
         disco="Cartola",
         ano="1976",
+        genero="Samba",
         audio_path=Path("data/dataset/cartola-as-rosas-nao-falam/audio.mp3"),
         ground_truth="As rosas não falam",
     )

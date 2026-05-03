@@ -41,6 +41,7 @@ def load_dataset(dataset_path: str) -> list[SongData]:
                 interpretacao=post.get("interpretacao", ""),
                 disco=post.get("disco", ""),
                 ano=str(post.get("ano", "")),
+                genero=post.get("genero", ""),
                 audio_path=audio_path,
                 ground_truth=post.content.strip(),
             )

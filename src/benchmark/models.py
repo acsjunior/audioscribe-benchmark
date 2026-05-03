@@ -10,6 +10,7 @@ class SongData:
     interpretacao: str
     disco: str
     ano: str
+    genero: str
     audio_path: Path
     ground_truth: str
 
@@ -22,6 +23,7 @@ class ExperimentResult:
     interpretacao: str
     disco: str
     ano: str
+    genero: str
     whisper_transcription: str
     refinement_provider: str | None
     refinement_model: str | None

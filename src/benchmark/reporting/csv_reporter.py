@@ -10,7 +10,7 @@ def write_csv(results: list[ExperimentResult], output_path: Path) -> None:
 
     metric_keys = list(results[0].metrics.keys())
     fieldnames = [
-        "song_id", "titulo", "autoria", "interpretacao", "disco", "ano",
+        "song_id", "titulo", "autoria", "interpretacao", "disco", "ano", "genero",
         "refinement_provider", "refinement_model", "prompt_name", "prompt_file",
         "tokens_used", "response_time_ms", "error",
     ] + metric_keys
@@ -26,6 +26,7 @@ def write_csv(results: list[ExperimentResult], output_path: Path) -> None:
                 "interpretacao": r.interpretacao,
                 "disco": r.disco,
                 "ano": r.ano,
+                "genero": r.genero,
                 "refinement_provider": r.refinement_provider or "baseline",
                 "refinement_model": r.refinement_model or "",
                 "prompt_name": r.prompt_name or "",

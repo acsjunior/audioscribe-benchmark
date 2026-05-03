@@ -102,6 +102,7 @@ autoria: Cartola
 interpretacao: Cartola
 disco: Cartola
 ano: 1976
+genero: Samba
 ---
 As rosas não falam
 Apenas perfumam
@@ -352,6 +353,7 @@ Colunas principais:
 | `interpretacao` | Intérprete(s) |
 | `disco` | Nome do disco |
 | `ano` | Ano de lançamento |
+| `genero` | Gênero musical |
 | `refinement_provider` | Provedor LLM (`baseline` se sem refinamento) |
 | `refinement_model` | Modelo utilizado |
 | `prompt_name` | Nome do prompt |
