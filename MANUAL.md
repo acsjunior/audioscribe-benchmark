@@ -75,13 +75,13 @@ espaços substituídos por hífens.
 data/dataset/
 ├── cartola-as-rosas-nao-falam/
 │   ├── audio.mp3
-│   └── ground_truth.txt
+│   └── ground_truth.md
 ├── nelson-cavaquinho-folhas-secas/
 │   ├── audio.mp3
-│   └── ground_truth.txt
+│   └── ground_truth.md
 └── joao-da-baiana-no-tabuleiro-da-baiana/
     ├── audio.mp3
-    └── ground_truth.txt
+    └── ground_truth.md
 ```
 
 ### 4.2 Arquivo de áudio
@@ -93,9 +93,10 @@ data/dataset/
 
 ### 4.3 Ground truth (letra validada)
 
-Crie o arquivo `ground_truth.txt` com o seguinte formato obrigatório:
+Crie o arquivo `ground_truth.md` com o seguinte formato obrigatório:
 
-```
+```markdown
+---
 titulo: As Rosas Não Falam
 autoria: Cartola
 interpretacao: Cartola
@@ -109,9 +110,9 @@ Me fazem chorar
 ```
 
 **Regras importantes:**
-- O cabeçalho com os metadados é obrigatório e deve seguir exatamente a ordem acima
-- O separador `---` deve estar em uma linha própria
-- A letra começa imediatamente após o `---`
+- O arquivo usa o formato **Markdown com frontmatter YAML** — o bloco de metadados fica entre dois `---`
+- Os campos devem seguir exatamente a ordem acima
+- A letra começa imediatamente após o segundo `---`
 - `autoria` é o compositor da música; `interpretacao` é o cantor/grupo que grava
 - Revise cuidadosamente a letra — a qualidade do ground truth é fundamental para a acurácia do benchmark
 - Para anos incertos, você pode usar strings como `"c. 1932"` ou `"1930?"`
@@ -385,7 +386,7 @@ incluindo erros e tempos de resposta.
 `comparacao-prompts-openai-2026-05` para facilitar a organização dos resultados.
 
 **Ground truth é tudo:** o benchmark só é tão bom quanto a qualidade das letras
-validadas. Revise cada `ground_truth.txt` com cuidado antes de rodar o benchmark.
+validadas. Revise cada `ground_truth.md` com cuidado antes de rodar o benchmark.
 
 ---
 
@@ -396,11 +397,11 @@ Verifique se o arquivo `.env` existe na raiz do projeto e contém a chave corret
 
 **Erro: `Dataset path not found`**
 Confirme que o campo `dataset_path` no YAML aponta para o diretório correto e que
-ele contém subpastas com `audio.mp3` e `ground_truth.txt`.
+ele contém subpastas com `audio.mp3` e `ground_truth.md`.
 
-**Erro: `Missing audio.mp3` ou `Missing ground_truth.txt`**
+**Erro: `Missing audio.mp3` ou `Missing ground_truth.md`**
 O pipeline avisa e pula a música. Verifique os nomes dos arquivos — devem ser
-exatamente `audio.mp3` e `ground_truth.txt`.
+exatamente `audio.mp3` e `ground_truth.md`.
 
 **Experimento registrado com erro no CSV**
 Uma chamada de API falhou após todas as tentativas de retry. Verifique o arquivo

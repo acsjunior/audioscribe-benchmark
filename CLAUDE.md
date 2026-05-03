@@ -49,7 +49,7 @@ audioscribe-benchmark/
 │   └── dataset/
 │       └── {artista-slug}-{titulo-slug}/
 │           ├── {qualquer-nome}.mp3   # exatamente um .mp3 por pasta
-│           └── ground_truth.txt
+│           └── ground_truth.md
 ├── prompts/
 │   ├── minimalist.yaml
 │   ├── rich_context.yaml
@@ -116,10 +116,11 @@ cartola-as-rosas-nao-falam/
 nelson-cavaquinho-folhas-secas/
 ```
 
-### Formato do ground_truth.txt
+### Formato do ground_truth.md
 Cabeçalho YAML-like com metadados, seguido de separador `---` e a letra:
 
-```
+```markdown
+---
 titulo: As Rosas Não Falam
 autoria: Cartola
 interpretacao: Cartola

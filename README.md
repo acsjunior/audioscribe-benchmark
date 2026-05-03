@@ -44,18 +44,20 @@ Organize os áudios e letras validadas em `data/dataset/`, uma pasta por música
 data/dataset/
 └── cartola-as-rosas-nao-falam/
     ├── audio.mp3
-    └── ground_truth.txt
+    └── ground_truth.md
 ```
 
 Os nomes de pasta devem seguir o padrão **slugify** (sem acentos, espaços ou caracteres especiais).
 
-O arquivo `ground_truth.txt` deve ter o seguinte formato:
+O arquivo `ground_truth.md` usa o formato **Markdown com frontmatter YAML**:
 
-```
-artista: Cartola
+```markdown
+---
 titulo: As Rosas Não Falam
+autoria: Cartola
+interpretacao: Cartola
+disco: Cartola
 ano: 1976
-album: Cartola
 ---
 As rosas não falam
 Apenas perfumam

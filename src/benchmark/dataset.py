@@ -1,26 +1,11 @@
 import logging
 from pathlib import Path
 
+import frontmatter
+
 from .models import SongData
 
 logger = logging.getLogger("benchmark")
-
-_SEPARATOR = "---"
-
-
-def _parse_ground_truth(path: Path) -> tuple[dict[str, str], str]:
-    content = path.read_text(encoding="utf-8")
-    if _SEPARATOR not in content:
-        return {}, content.strip()
-
-    header_part, lyrics_part = content.split(_SEPARATOR, 1)
-    metadata: dict[str, str] = {}
-    for line in header_part.strip().splitlines():
-        if ":" in line:
-            key, value = line.split(":", 1)
-            metadata[key.strip()] = value.strip()
-
-    return metadata, lyrics_part.strip()
 
 
 def load_dataset(dataset_path: str) -> list[SongData]:
@@ -34,7 +19,7 @@ def load_dataset(dataset_path: str) -> list[SongData]:
             continue
 
         mp3_files = list(song_dir.glob("*.mp3"))
-        gt_path = song_dir / "ground_truth.txt"
+        gt_path = song_dir / "ground_truth.md"
 
         if len(mp3_files) == 0:
             logger.warning(f"No .mp3 file found in {song_dir.name}, skipping")
@@ -44,20 +29,20 @@ def load_dataset(dataset_path: str) -> list[SongData]:
             continue
         audio_path = mp3_files[0]
         if not gt_path.exists():
-            logger.warning(f"Missing ground_truth.txt in {song_dir.name}, skipping")
+            logger.warning(f"Missing ground_truth.md in {song_dir.name}, skipping")
             continue
 
-        metadata, lyrics = _parse_ground_truth(gt_path)
+        post = frontmatter.load(gt_path)
         songs.append(
             SongData(
                 song_id=song_dir.name,
-                titulo=metadata.get("titulo", ""),
-                autoria=metadata.get("autoria", ""),
-                interpretacao=metadata.get("interpretacao", ""),
-                disco=metadata.get("disco", ""),
-                ano=metadata.get("ano", ""),
+                titulo=post.get("titulo", ""),
+                autoria=post.get("autoria", ""),
+                interpretacao=post.get("interpretacao", ""),
+                disco=post.get("disco", ""),
+                ano=str(post.get("ano", "")),
                 audio_path=audio_path,
-                ground_truth=lyrics,
+                ground_truth=post.content.strip(),
             )
         )
         logger.debug(f"Loaded: {song_dir.name}")
