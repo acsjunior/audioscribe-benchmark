@@ -186,3 +186,6 @@ uv run pytest
 uv run ruff check src/
 uv run ruff format src/
 ```
+
+> **Atenção:** a métrica BERTScore baixa um modelo de linguagem pesado (~1-2 GB) na primeira execução. Isso pode demorar alguns minutos dependendo da conexão. O modelo fica em cache após o primeiro download.
+
