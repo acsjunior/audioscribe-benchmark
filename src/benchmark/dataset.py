@@ -33,12 +33,16 @@ def load_dataset(dataset_path: str) -> list[SongData]:
         if not song_dir.is_dir():
             continue
 
-        audio_path = song_dir / "audio.mp3"
+        mp3_files = list(song_dir.glob("*.mp3"))
         gt_path = song_dir / "ground_truth.txt"
 
-        if not audio_path.exists():
-            logger.warning(f"Missing audio.mp3 in {song_dir.name}, skipping")
+        if len(mp3_files) == 0:
+            logger.warning(f"No .mp3 file found in {song_dir.name}, skipping")
             continue
+        if len(mp3_files) > 1:
+            logger.warning(f"Multiple .mp3 files found in {song_dir.name}, skipping")
+            continue
+        audio_path = mp3_files[0]
         if not gt_path.exists():
             logger.warning(f"Missing ground_truth.txt in {song_dir.name}, skipping")
             continue

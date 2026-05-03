@@ -51,9 +51,31 @@ def test_load_dataset(tmp_path):
     assert songs[0].ground_truth == "As rosas não falam\nApenas perfumam"
 
 
-def test_load_dataset_skips_missing_audio(tmp_path):
+def test_load_dataset_accepts_any_mp3_filename(tmp_path):
     song_dir = tmp_path / "cartola-as-rosas-nao-falam"
     song_dir.mkdir()
+    (song_dir / "cartola_rosas.mp3").write_bytes(b"")
+    (song_dir / "ground_truth.txt").write_text(GROUND_TRUTH_WITH_HEADER, encoding="utf-8")
+
+    songs = load_dataset(str(tmp_path))
+    assert len(songs) == 1
+    assert songs[0].audio_path.name == "cartola_rosas.mp3"
+
+
+def test_load_dataset_skips_no_mp3(tmp_path):
+    song_dir = tmp_path / "cartola-as-rosas-nao-falam"
+    song_dir.mkdir()
+    (song_dir / "ground_truth.txt").write_text(GROUND_TRUTH_WITH_HEADER, encoding="utf-8")
+
+    songs = load_dataset(str(tmp_path))
+    assert songs == []
+
+
+def test_load_dataset_skips_multiple_mp3(tmp_path):
+    song_dir = tmp_path / "cartola-as-rosas-nao-falam"
+    song_dir.mkdir()
+    (song_dir / "audio.mp3").write_bytes(b"")
+    (song_dir / "audio2.mp3").write_bytes(b"")
     (song_dir / "ground_truth.txt").write_text(GROUND_TRUTH_WITH_HEADER, encoding="utf-8")
 
     songs = load_dataset(str(tmp_path))

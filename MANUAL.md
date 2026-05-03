@@ -87,7 +87,8 @@ data/dataset/
 ### 4.2 Arquivo de áudio
 
 - Formato: `.mp3`
-- Nome fixo: `audio.mp3`
+- O nome do arquivo pode ser qualquer um — o pipeline encontra automaticamente o `.mp3` da pasta
+- **Obrigatório:** deve haver exatamente um arquivo `.mp3` por pasta. Se houver zero ou mais de um, a música é ignorada com aviso no log
 - Não há restrição de duração, mas arquivos muito longos aumentam o custo da API do Whisper
 
 ### 4.3 Ground truth (letra validada)

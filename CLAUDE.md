@@ -48,7 +48,7 @@ audioscribe-benchmark/
 ├── data/
 │   └── dataset/
 │       └── {artista-slug}-{titulo-slug}/
-│           ├── audio.mp3
+│           ├── {qualquer-nome}.mp3   # exatamente um .mp3 por pasta
 │           └── ground_truth.txt
 ├── prompts/
 │   ├── minimalist.yaml
