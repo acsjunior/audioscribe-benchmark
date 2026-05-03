@@ -1,0 +1,40 @@
+# Credenciais
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Testes e cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ambiente virtual
+.venv/
+venv/
+
+# uv
+.uv/
+
+# Outputs do projeto
+logs/
+results/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
