@@ -64,7 +64,7 @@ _TEMPLATE = """<!DOCTYPE html>
 
   <h2>Resultados por Música</h2>
   {% for song_id, song_results in by_song.items() %}
-  <h3>{{ song_results[0].artista }} — {{ song_results[0].titulo }}{% if song_results[0].ano %} ({{ song_results[0].ano }}){% endif %}</h3>
+  <h3>{{ song_results[0].interpretacao }} — {{ song_results[0].titulo }}{% if song_results[0].ano %} ({{ song_results[0].ano }}){% endif %}</h3>
   <table>
     <thead>
       <tr>

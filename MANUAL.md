@@ -96,10 +96,11 @@ data/dataset/
 Crie o arquivo `ground_truth.txt` com o seguinte formato obrigatório:
 
 ```
-artista: Cartola
 titulo: As Rosas Não Falam
+autoria: Cartola
+interpretacao: Cartola
+disco: Cartola
 ano: 1976
-album: Cartola
 ---
 As rosas não falam
 Apenas perfumam
@@ -108,9 +109,10 @@ Me fazem chorar
 ```
 
 **Regras importantes:**
-- O cabeçalho com os metadados é obrigatório
+- O cabeçalho com os metadados é obrigatório e deve seguir exatamente a ordem acima
 - O separador `---` deve estar em uma linha própria
 - A letra começa imediatamente após o `---`
+- `autoria` é o compositor da música; `interpretacao` é o cantor/grupo que grava
 - Revise cuidadosamente a letra — a qualidade do ground truth é fundamental para a acurácia do benchmark
 - Para anos incertos, você pode usar strings como `"c. 1932"` ou `"1930?"`
 
@@ -344,6 +346,11 @@ Colunas principais:
 | Coluna | Descrição |
 |---|---|
 | `song_id` | Identificador da pasta da música |
+| `titulo` | Título da música |
+| `autoria` | Compositor(es) |
+| `interpretacao` | Intérprete(s) |
+| `disco` | Nome do disco |
+| `ano` | Ano de lançamento |
 | `refinement_provider` | Provedor LLM (`baseline` se sem refinamento) |
 | `refinement_model` | Modelo utilizado |
 | `prompt_name` | Nome do prompt |

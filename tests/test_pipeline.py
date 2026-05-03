@@ -43,10 +43,11 @@ def config_with_refinement(tmp_path) -> tuple[ExperimentConfig, Path]:
 def fake_song(tmp_path) -> SongData:
     return SongData(
         song_id="cartola-as-rosas-nao-falam",
-        artista="Cartola",
         titulo="As Rosas Não Falam",
+        autoria="Cartola",
+        interpretacao="Cartola",
+        disco="Cartola",
         ano="1976",
-        album="Cartola",
         audio_path=tmp_path / "audio.mp3",
         ground_truth="As rosas não falam",
     )

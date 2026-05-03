@@ -10,10 +10,11 @@ from benchmark.reporting.json_reporter import write_json
 def make_result(provider=None, prompt="minimalist", wer=0.3, cer=0.2) -> ExperimentResult:
     return ExperimentResult(
         song_id="cartola-as-rosas-nao-falam",
-        artista="Cartola",
         titulo="As Rosas Não Falam",
+        autoria="Cartola",
+        interpretacao="Cartola",
+        disco="Cartola",
         ano="1976",
-        album="Cartola",
         whisper_transcription="as rosas nao falam",
         refinement_provider=provider,
         refinement_model="gpt-4o" if provider else None,

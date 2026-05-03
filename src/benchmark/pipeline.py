@@ -62,7 +62,7 @@ class Pipeline:
         all_results: list[ExperimentResult] = []
 
         for i, song in enumerate(songs, 1):
-            logger.info(f"[{i}/{len(songs)}] {song.artista} — {song.titulo}")
+            logger.info(f"[{i}/{len(songs)}] {song.interpretacao} — {song.titulo}")
 
             try:
                 transcription = await transcribe_fn(song.audio_path)
@@ -73,10 +73,11 @@ class Pipeline:
 
             all_results.append(ExperimentResult(
                 song_id=song.song_id,
-                artista=song.artista,
                 titulo=song.titulo,
+                autoria=song.autoria,
+                interpretacao=song.interpretacao,
+                disco=song.disco,
                 ano=song.ano,
-                album=song.album,
                 whisper_transcription=transcription,
                 refinement_provider=None,
                 refinement_model=None,
@@ -101,10 +102,11 @@ class Pipeline:
 
                     all_results.append(ExperimentResult(
                         song_id=song.song_id,
-                        artista=song.artista,
                         titulo=song.titulo,
+                        autoria=song.autoria,
+                        interpretacao=song.interpretacao,
+                        disco=song.disco,
                         ano=song.ano,
-                        album=song.album,
                         whisper_transcription=transcription,
                         refinement_provider=ref_config.provider,
                         refinement_model=ref_config.model,
@@ -121,10 +123,11 @@ class Pipeline:
                     logger.error(f"    Falhou: {e}")
                     all_results.append(ExperimentResult(
                         song_id=song.song_id,
-                        artista=song.artista,
                         titulo=song.titulo,
+                        autoria=song.autoria,
+                        interpretacao=song.interpretacao,
+                        disco=song.disco,
                         ano=song.ano,
-                        album=song.album,
                         whisper_transcription=transcription,
                         refinement_provider=ref_config.provider,
                         refinement_model=ref_config.model,

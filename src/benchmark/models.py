@@ -5,10 +5,11 @@ from pathlib import Path
 @dataclass
 class SongData:
     song_id: str
-    artista: str
     titulo: str
+    autoria: str
+    interpretacao: str
+    disco: str
     ano: str
-    album: str
     audio_path: Path
     ground_truth: str
 
@@ -16,10 +17,11 @@ class SongData:
 @dataclass
 class ExperimentResult:
     song_id: str
-    artista: str
     titulo: str
+    autoria: str
+    interpretacao: str
+    disco: str
     ano: str
-    album: str
     whisper_transcription: str
     refinement_provider: str | None
     refinement_model: str | None

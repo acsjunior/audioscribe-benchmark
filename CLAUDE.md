@@ -120,10 +120,11 @@ nelson-cavaquinho-folhas-secas/
 Cabeçalho YAML-like com metadados, seguido de separador `---` e a letra:
 
 ```
-artista: Cartola
 titulo: As Rosas Não Falam
+autoria: Cartola
+interpretacao: Cartola
+disco: Cartola
 ano: 1976
-album: Cartola
 ---
 As rosas não falam
 Apenas perfumam

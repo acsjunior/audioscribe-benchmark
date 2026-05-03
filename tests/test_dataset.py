@@ -4,10 +4,11 @@ from benchmark.dataset import _parse_ground_truth, load_dataset
 
 
 GROUND_TRUTH_WITH_HEADER = """\
-artista: Cartola
 titulo: As Rosas Não Falam
+autoria: Cartola
+interpretacao: Cartola
+disco: Cartola
 ano: 1976
-album: Cartola
 ---
 As rosas não falam
 Apenas perfumam
@@ -23,10 +24,11 @@ def test_parse_ground_truth_with_header(tmp_path):
     gt = tmp_path / "ground_truth.txt"
     gt.write_text(GROUND_TRUTH_WITH_HEADER, encoding="utf-8")
     metadata, lyrics = _parse_ground_truth(gt)
-    assert metadata["artista"] == "Cartola"
     assert metadata["titulo"] == "As Rosas Não Falam"
+    assert metadata["autoria"] == "Cartola"
+    assert metadata["interpretacao"] == "Cartola"
+    assert metadata["disco"] == "Cartola"
     assert metadata["ano"] == "1976"
-    assert metadata["album"] == "Cartola"
     assert lyrics == "As rosas não falam\nApenas perfumam"
 
 
@@ -47,7 +49,8 @@ def test_load_dataset(tmp_path):
     songs = load_dataset(str(tmp_path))
     assert len(songs) == 1
     assert songs[0].song_id == "cartola-as-rosas-nao-falam"
-    assert songs[0].artista == "Cartola"
+    assert songs[0].autoria == "Cartola"
+    assert songs[0].interpretacao == "Cartola"
     assert songs[0].ground_truth == "As rosas não falam\nApenas perfumam"
 
 

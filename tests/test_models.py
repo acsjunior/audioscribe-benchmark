@@ -6,10 +6,11 @@ from benchmark.models import ExperimentResult, SongData
 def make_result(**kwargs) -> ExperimentResult:
     defaults = dict(
         song_id="cartola-as-rosas-nao-falam",
-        artista="Cartola",
         titulo="As Rosas Não Falam",
+        autoria="Cartola",
+        interpretacao="Cartola",
+        disco="Cartola",
         ano="1976",
-        album="Cartola",
         whisper_transcription="as rosas nao falam",
         refinement_provider=None,
         refinement_model=None,
@@ -24,15 +25,16 @@ def make_result(**kwargs) -> ExperimentResult:
 def test_song_data_fields():
     song = SongData(
         song_id="cartola-as-rosas-nao-falam",
-        artista="Cartola",
         titulo="As Rosas Não Falam",
+        autoria="Cartola",
+        interpretacao="Cartola",
+        disco="Cartola",
         ano="1976",
-        album="Cartola",
         audio_path=Path("data/dataset/cartola-as-rosas-nao-falam/audio.mp3"),
         ground_truth="As rosas não falam",
     )
     assert song.song_id == "cartola-as-rosas-nao-falam"
-    assert song.artista == "Cartola"
+    assert song.autoria == "Cartola"
 
 
 def test_evaluated_transcription_baseline():

@@ -51,10 +51,11 @@ def load_dataset(dataset_path: str) -> list[SongData]:
         songs.append(
             SongData(
                 song_id=song_dir.name,
-                artista=metadata.get("artista", ""),
                 titulo=metadata.get("titulo", ""),
+                autoria=metadata.get("autoria", ""),
+                interpretacao=metadata.get("interpretacao", ""),
+                disco=metadata.get("disco", ""),
                 ano=metadata.get("ano", ""),
-                album=metadata.get("album", ""),
                 audio_path=audio_path,
                 ground_truth=lyrics,
             )
