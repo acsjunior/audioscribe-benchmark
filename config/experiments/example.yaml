@@ -1,0 +1,38 @@
+experiment_name: "experimento-01"
+
+logging:
+  mode: normal
+  output_file: logs/experimento-01.log
+
+retry:
+  max_attempts: 3
+  backoff_factor: 2.0
+
+transcription:
+  provider: whisper
+  model: whisper-1
+
+refinement:
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/minimalist.yaml
+
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/rich_context.yaml
+
+  - provider: anthropic
+    model: claude-opus-4-7
+    prompt_file: prompts/rich_context.yaml
+
+  - provider: google
+    model: gemini-2.0-flash
+    prompt_file: prompts/rich_context.yaml
+
+metrics:
+  - wer
+  - cer
+  - bertscore
+
+dataset_path: data/dataset
+results_path: results

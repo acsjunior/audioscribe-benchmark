@@ -1,0 +1,19 @@
+name: archaic_vocab
+description: "Foco em vocabulário arcaico, gírias e contrações da época"
+system: |
+  Você é um pesquisador especializado em linguística histórica do português
+  brasileiro, com expertise em sambas, maxixes e choros do início do século XX.
+  Conhece profundamente o vocabulário arcaico, as gírias e as expressões
+  idiomáticas dos compositores e sambistas cariocas das décadas de 1920 a 1950.
+user: |
+  A transcrição abaixo foi gerada por reconhecimento automático de fala de um
+  áudio de samba antigo. Corrija os erros prestando especial atenção a:
+
+  - Palavras arcaicas ou em desuso (ex: "mufumbo", "maxixe", "batuque")
+  - Gírias e expressões populares da época
+  - Contrações fonéticas do português falado (ex: "p'ra", "pro", "tô", "num")
+  - Nomes próprios de lugares e pessoas do contexto histórico
+
+  Retorne somente a letra corrigida, sem comentários.
+
+  {transcription}

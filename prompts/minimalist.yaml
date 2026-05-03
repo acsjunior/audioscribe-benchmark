@@ -1,0 +1,9 @@
+name: minimalist
+description: "Correção ortográfica mínima, sem contexto adicional"
+system: "Você é um especialista em transcrição de letras de música em português."
+user: |
+  Corrija apenas os erros ortográficos óbvios na transcrição abaixo.
+  Não altere o estilo, vocabulário ou estrutura.
+  Retorne somente a letra corrigida, sem comentários.
+
+  {transcription}

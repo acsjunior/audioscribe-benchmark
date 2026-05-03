@@ -1,0 +1,31 @@
+name: few_shot
+description: "Exemplos de correção guiando o modelo"
+system: |
+  Você é um especialista em transcrição de letras de samba antigo brasileiro.
+  Corrija transcrições automáticas preservando o estilo e vocabulário originais.
+user: |
+  Corrija a transcrição abaixo seguindo o mesmo padrão dos exemplos anteriores.
+  Retorne somente a letra corrigida, sem comentários.
+
+  {transcription}
+examples:
+  - input: |
+      ela e a flor mais linda do jardim
+      quando ela pasa todo mudo olha pra im
+      seus olho são dua estrêla a brilha
+      e seu soriso e uma maravilia
+    output: |
+      Ela é a flor mais linda do jardim
+      Quando ela passa todo mundo olha pra mim
+      Seus olhos são duas estrelas a brilhar
+      E seu sorriso é uma maravilha
+  - input: |
+      chorei a noite intêra
+      esperano tua volta meu amor
+      mas voce não veo mais
+      e eu fiquei nessa dô
+    output: |
+      Chorei a noite inteira
+      Esperando tua volta meu amor
+      Mas você não veio mais
+      E eu fiquei nessa dor
