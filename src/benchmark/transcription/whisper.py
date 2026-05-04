@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 from pathlib import Path
 
@@ -7,6 +8,28 @@ from openai import AsyncOpenAI
 from .base import BaseTranscriber
 
 logger = logging.getLogger("benchmark")
+
+# Known Whisper hallucination patterns (regex, case-insensitive).
+# Add new entries here as new hallucinations are identified.
+HALLUCINATION_PATTERNS: list[str] = [
+    # Padrões específicos primeiro para evitar remoção parcial por padrões mais curtos
+    r"Legendas pela comunidade Amara\.org",
+    r"Subtitles by the Amara\.org community",
+    r"Legendas:\s+Amara\.org",
+    r"Tradução e legendas\s*:",
+    # Padrões genéricos depois
+    r"Amara\.org",
+    r"Legendas\s*:",
+    r"Transcrição\s*:",
+    r"Legendado por\s*:",
+    r"Transcrição por\s*:",
+]
+
+
+def _remove_hallucinations(text: str) -> str:
+    for pattern in HALLUCINATION_PATTERNS:
+        text = re.sub(pattern, "", text, flags=re.IGNORECASE)
+    return text.strip()
 
 
 class WhisperTranscriber(BaseTranscriber):
@@ -27,4 +50,4 @@ class WhisperTranscriber(BaseTranscriber):
 
         elapsed = (time.monotonic() - start) * 1000
         logger.debug(f"Transcription completed in {elapsed:.0f}ms")
-        return response.text
+        return _remove_hallucinations(response.text)

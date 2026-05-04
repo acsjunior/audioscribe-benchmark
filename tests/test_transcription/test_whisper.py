@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from benchmark.transcription.whisper import WhisperTranscriber
+from benchmark.transcription.whisper import WhisperTranscriber, _remove_hallucinations
 
 
 @pytest.fixture
@@ -44,3 +44,49 @@ async def test_transcribe_uses_configured_model(mock_openai_cls, audio_file):
 
     call_kwargs = mock_client.audio.transcriptions.create.call_args.kwargs
     assert call_kwargs["model"] == "whisper-1"
+
+
+@patch("benchmark.transcription.whisper.AsyncOpenAI")
+async def test_transcribe_removes_hallucinations(mock_openai_cls, audio_file):
+    mock_client = MagicMock()
+    mock_client.audio.transcriptions.create = AsyncMock(
+        return_value=MagicMock(text="As rosas não falam\nLegendas pela comunidade Amara.org")
+    )
+    mock_openai_cls.return_value = mock_client
+
+    transcriber = WhisperTranscriber(model="whisper-1")
+    result = await transcriber.transcribe(audio_file)
+
+    assert "Amara" not in result
+    assert result == "As rosas não falam"
+
+
+@pytest.mark.parametrize("hallucination", [
+    "Legendas pela comunidade Amara.org",
+    "Amara.org",
+    "Legendas: ",
+    "Legendas:",
+    "Transcrição: ",
+    "Transcrição:",
+    "Subtitles by the Amara.org community",
+    "Tradução e legendas:",
+    "Legendado por:",
+    "Transcrição por:",
+])
+def test_remove_hallucinations_known_patterns(hallucination):
+    text = f"As rosas não falam\n{hallucination}"
+    assert _remove_hallucinations(text) == "As rosas não falam"
+
+
+def test_remove_hallucinations_case_insensitive():
+    assert _remove_hallucinations("letra\nLEGENDAS: ") == "letra"
+    assert _remove_hallucinations("letra\nAMARA.ORG") == "letra"
+
+
+def test_remove_hallucinations_clean_text_unchanged():
+    text = "As rosas não falam\nApenas perfumam"
+    assert _remove_hallucinations(text) == text
+
+
+def test_remove_hallucinations_strips_whitespace():
+    assert _remove_hallucinations("  As rosas não falam  ") == "As rosas não falam"
