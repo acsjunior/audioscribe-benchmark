@@ -3,7 +3,7 @@ import json
 
 from benchmark.models import ExperimentResult
 from benchmark.reporting.csv_reporter import write_csv
-from benchmark.reporting.html_reporter import _build_comparison, _highlight_diff, write_html
+from benchmark.reporting.html_reporter import _build_comparison, write_html
 from benchmark.reporting.json_reporter import write_json
 
 
@@ -76,55 +76,13 @@ def test_write_html(tmp_path):
     assert "experimento-01" in content
     assert "Ranking" in content
     assert "Cartola" in content
-    assert "Comparação Visual" in content
-
-
-def test_write_html_contains_diff_spans(tmp_path):
-    results = [make_result(), make_result(provider="openai")]
-    out = tmp_path / "report.html"
-    write_html(results, out, "experimento-01")
-
-    content = out.read_text(encoding="utf-8")
-    assert 'class="w-ok"' in content
-    assert 'class="w-err"' in content
+    assert "Comparação de Transcrições" in content
 
 
 def test_write_html_empty(tmp_path):
     out = tmp_path / "report.html"
     write_html([], out, "vazio")
     assert not out.exists()
-
-
-# --- _highlight_diff ---
-
-def test_highlight_diff_identical():
-    result = _highlight_diff("as rosas nao falam", "as rosas nao falam")
-    assert 'w-ok' in result
-    assert 'w-err' not in result
-
-
-def test_highlight_diff_all_different():
-    result = _highlight_diff("as rosas nao falam", "outro texto qualquer aqui")
-    assert 'w-err' in result
-    assert 'w-ok' not in result
-
-
-def test_highlight_diff_partial():
-    result = _highlight_diff("as rosas nao falam", "as rosas não falam")
-    assert 'w-ok' in result
-    assert 'w-err' in result
-
-
-def test_highlight_diff_empty_hypothesis():
-    result = _highlight_diff("as rosas nao falam", "")
-    assert "vazio" in result
-    assert 'w-err' in result
-
-
-def test_highlight_diff_escapes_html():
-    result = _highlight_diff("a & b", "a & b")
-    assert "&amp;" in result
-    assert "&" not in result.replace("&amp;", "").replace("&quot;", "")
 
 
 # --- _build_comparison ---
@@ -140,4 +98,22 @@ def test_build_comparison_structure():
     assert song["ground_truth"] == "As rosas não falam"
     assert len(song["entries"]) == 2
     assert "label" in song["entries"][0]
-    assert "diff_html" in song["entries"][0]
+    assert "text" in song["entries"][0]
+
+
+def test_build_comparison_baseline_uses_whisper_transcription():
+    results = [make_result()]
+    by_song = {"cartola-as-rosas-nao-falam": results}
+    comparison = _build_comparison(by_song)
+
+    entry = comparison["cartola-as-rosas-nao-falam"]["entries"][0]
+    assert entry["text"] == "as rosas nao falam"
+
+
+def test_build_comparison_refined_uses_refined_transcription():
+    results = [make_result(provider="openai")]
+    by_song = {"cartola-as-rosas-nao-falam": results}
+    comparison = _build_comparison(by_song)
+
+    entry = comparison["cartola-as-rosas-nao-falam"]["entries"][0]
+    assert entry["text"] == "As rosas não falam"
