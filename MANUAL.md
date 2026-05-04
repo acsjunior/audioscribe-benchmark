@@ -257,7 +257,9 @@ examples:                     # opcional — para prompts few-shot
 |---|---|
 | `prompts/minimalist.yaml` | Correção ortográfica mínima |
 | `prompts/rich_context.yaml` | Contexto rico sobre sambas antigos |
+| `prompts/rich_context_v2.yaml` | Contexto rico + coerência narrativa e distinção de tempos/modos verbais |
 | `prompts/archaic_vocab.yaml` | Foco em vocabulário arcaico e gírias |
+| `prompts/archaic_vocab_v2.yaml` | Vocabulário arcaico + coerência narrativa e distinção de tempos/modos verbais |
 | `prompts/few_shot.yaml` | Exemplos de correção guiando o modelo |
 
 ### 6.3 Criando um prompt personalizado
