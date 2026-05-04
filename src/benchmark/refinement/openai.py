@@ -11,8 +11,9 @@ logger = logging.getLogger("benchmark")
 class OpenAIRefiner(BaseRefiner):
     provider = "openai"
 
-    def __init__(self, model: str = "gpt-4o") -> None:
+    def __init__(self, model: str = "gpt-4o", temperature: float = 0.0) -> None:
         self.model = model
+        self.temperature = temperature
         self.client = AsyncOpenAI()
 
     async def refine(self, transcription: str, prompt: PromptConfig) -> RefinementResult:
@@ -27,6 +28,7 @@ class OpenAIRefiner(BaseRefiner):
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=[{"role": "system", "content": prompt.system}] + messages,
+            temperature=self.temperature,
         )
         elapsed = (time.monotonic() - start) * 1000
 

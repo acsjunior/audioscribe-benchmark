@@ -10,9 +10,9 @@ REFINER_REGISTRY: dict[str, type[BaseRefiner]] = {
 }
 
 
-def get_refiner(provider: str, model: str) -> BaseRefiner:
+def get_refiner(provider: str, model: str, temperature: float = 0.0) -> BaseRefiner:
     if provider not in REFINER_REGISTRY:
         raise ValueError(
             f"Unknown provider: '{provider}'. Available: {list(REFINER_REGISTRY)}"
         )
-    return REFINER_REGISTRY[provider](model=model)
+    return REFINER_REGISTRY[provider](model=model, temperature=temperature)

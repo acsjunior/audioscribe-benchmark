@@ -39,6 +39,8 @@ def test_prompt_format_user(prompt):
     assert prompt.format_user("as rosas") == "Corrija: as rosas"
 
 
+# --- OpenAI ---
+
 @patch("benchmark.refinement.openai.AsyncOpenAI")
 async def test_openai_refiner(mock_cls, prompt):
     mock_client = MagicMock()
@@ -55,7 +57,26 @@ async def test_openai_refiner(mock_cls, prompt):
     assert result.tokens_used == 80
     call_kwargs = mock_client.chat.completions.create.call_args.kwargs
     assert call_kwargs["model"] == "gpt-4o"
+    assert call_kwargs["temperature"] == 0.0
 
+
+@patch("benchmark.refinement.openai.AsyncOpenAI")
+async def test_openai_refiner_custom_temperature(mock_cls, prompt):
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock(message=MagicMock(content="resultado"))]
+    mock_response.usage = MagicMock(total_tokens=50)
+    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+    mock_cls.return_value = mock_client
+
+    refiner = OpenAIRefiner(model="gpt-4o", temperature=0.7)
+    await refiner.refine("texto", prompt)
+
+    call_kwargs = mock_client.chat.completions.create.call_args.kwargs
+    assert call_kwargs["temperature"] == 0.7
+
+
+# --- Anthropic ---
 
 @patch("benchmark.refinement.anthropic.AsyncAnthropic")
 async def test_anthropic_refiner(mock_cls, prompt):
@@ -74,7 +95,26 @@ async def test_anthropic_refiner(mock_cls, prompt):
     call_kwargs = mock_client.messages.create.call_args.kwargs
     assert call_kwargs["model"] == "claude-opus-4-7"
     assert call_kwargs["system"] == prompt.system
+    assert call_kwargs["temperature"] == 0.0
 
+
+@patch("benchmark.refinement.anthropic.AsyncAnthropic")
+async def test_anthropic_refiner_custom_temperature(mock_cls, prompt):
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text="resultado")]
+    mock_response.usage = MagicMock(input_tokens=30, output_tokens=20)
+    mock_client.messages.create = AsyncMock(return_value=mock_response)
+    mock_cls.return_value = mock_client
+
+    refiner = AnthropicRefiner(model="claude-opus-4-7", temperature=0.5)
+    await refiner.refine("texto", prompt)
+
+    call_kwargs = mock_client.messages.create.call_args.kwargs
+    assert call_kwargs["temperature"] == 0.5
+
+
+# --- Google ---
 
 @patch("benchmark.refinement.google.genai.Client")
 async def test_google_refiner(mock_client_cls, mocker, prompt):
@@ -90,13 +130,33 @@ async def test_google_refiner(mock_client_cls, mocker, prompt):
     assert result.refined_text == "As rosas não falam"
     assert result.tokens_used == 75
     assert result.response_time_ms == 400.0
+    assert refiner.temperature == 0.0
 
+
+@patch("benchmark.refinement.google.genai.Client")
+async def test_google_refiner_custom_temperature(mock_client_cls, mocker, prompt):
+    mock_client_cls.return_value = MagicMock()
+    refiner = GoogleRefiner(model="gemini-2.0-flash", temperature=0.3)
+    mocker.patch.object(refiner, "_call_sync", return_value=("resultado", 50, 200.0))
+    await refiner.refine("texto", prompt)
+
+    assert refiner.temperature == 0.3
+
+
+# --- Registry ---
 
 def test_get_refiner_openai():
     with patch("benchmark.refinement.openai.AsyncOpenAI"):
         refiner = get_refiner("openai", "gpt-4o")
     assert isinstance(refiner, OpenAIRefiner)
     assert refiner.model == "gpt-4o"
+    assert refiner.temperature == 0.0
+
+
+def test_get_refiner_openai_custom_temperature():
+    with patch("benchmark.refinement.openai.AsyncOpenAI"):
+        refiner = get_refiner("openai", "gpt-4o", temperature=0.8)
+    assert refiner.temperature == 0.8
 
 
 def test_get_refiner_unknown_raises():

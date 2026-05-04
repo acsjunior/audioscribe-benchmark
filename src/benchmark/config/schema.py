@@ -20,6 +20,7 @@ class RefinementConfig(BaseModel):
     provider: str
     model: str
     prompt_file: str
+    temperature: float = 0.0
 
 
 class ExperimentConfig(BaseModel):

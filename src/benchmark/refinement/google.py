@@ -14,8 +14,9 @@ logger = logging.getLogger("benchmark")
 class GoogleRefiner(BaseRefiner):
     provider = "google"
 
-    def __init__(self, model: str = "gemini-2.0-flash") -> None:
+    def __init__(self, model: str = "gemini-2.0-flash", temperature: float = 0.0) -> None:
         self.model = model
+        self.temperature = temperature
         self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY", ""))
 
     def _call_sync(self, transcription: str, prompt: PromptConfig) -> tuple[str, int | None, float]:
@@ -32,7 +33,10 @@ class GoogleRefiner(BaseRefiner):
         response = self.client.models.generate_content(
             model=self.model,
             contents=contents,
-            config=types.GenerateContentConfig(system_instruction=prompt.system),
+            config=types.GenerateContentConfig(
+                system_instruction=prompt.system,
+                temperature=self.temperature,
+            ),
         )
         elapsed = (time.monotonic() - start) * 1000
 

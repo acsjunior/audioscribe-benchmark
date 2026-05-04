@@ -11,8 +11,9 @@ logger = logging.getLogger("benchmark")
 class AnthropicRefiner(BaseRefiner):
     provider = "anthropic"
 
-    def __init__(self, model: str = "claude-opus-4-7") -> None:
+    def __init__(self, model: str = "claude-opus-4-7", temperature: float = 0.0) -> None:
         self.model = model
+        self.temperature = temperature
         self.client = AsyncAnthropic()
 
     async def refine(self, transcription: str, prompt: PromptConfig) -> RefinementResult:
@@ -29,6 +30,7 @@ class AnthropicRefiner(BaseRefiner):
             max_tokens=4096,
             system=prompt.system,
             messages=messages,
+            temperature=self.temperature,
         )
         elapsed = (time.monotonic() - start) * 1000
 

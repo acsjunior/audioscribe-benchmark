@@ -44,7 +44,7 @@ class Pipeline:
         refiners = []
         for ref_config in self.config.refinement:
             prompt = load_prompt(ref_config.prompt_file)
-            refiner = get_refiner(ref_config.provider, ref_config.model)
+            refiner = get_refiner(ref_config.provider, ref_config.model, ref_config.temperature)
             refiners.append((ref_config, refiner, prompt))
         return refiners
 
