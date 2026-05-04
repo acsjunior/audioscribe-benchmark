@@ -25,6 +25,16 @@ HALLUCINATION_PATTERNS: list[str] = [
     r"Transcrição por\s*:",
 ]
 
+# Prompt padrão para gpt-4o-transcribe quando nenhum prompt é fornecido explicitamente.
+DEFAULT_PROMPT_GPT4O_TRANSCRIBE = (
+    "A transcrição a seguir é de um samba brasileiro antigo das décadas de 1920 a 1950. "
+    "Vocabulário arcaico, português coloquial carioca da época. "
+    "Artistas como Cartola, Nelson Cavaquinho, Sinhô, João da Baiana, Francisco Alves."
+)
+
+# Modelos que suportam o parâmetro prompt na API de transcrição.
+SUPPORTED_MODELS = {"whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe"}
+
 
 def _remove_hallucinations(text: str) -> str:
     for pattern in HALLUCINATION_PATTERNS:
@@ -33,20 +43,29 @@ def _remove_hallucinations(text: str) -> str:
 
 
 class WhisperTranscriber(BaseTranscriber):
-    def __init__(self, model: str = "whisper-1") -> None:
+    def __init__(self, model: str = "whisper-1", prompt: str | None = None) -> None:
         self.model = model
+        self.prompt = prompt
         self.client = AsyncOpenAI()
+
+    def _effective_prompt(self) -> str | None:
+        if self.prompt is not None:
+            return self.prompt
+        if self.model == "gpt-4o-transcribe":
+            return DEFAULT_PROMPT_GPT4O_TRANSCRIBE
+        return None
 
     async def transcribe(self, audio_path: Path) -> str:
         logger.debug(f"Transcribing {audio_path.name} with {self.model}")
         start = time.monotonic()
 
+        kwargs: dict = {"model": self.model, "language": "pt"}
+        effective_prompt = self._effective_prompt()
+        if effective_prompt is not None:
+            kwargs["prompt"] = effective_prompt
+
         with open(audio_path, "rb") as f:
-            response = await self.client.audio.transcriptions.create(
-                model=self.model,
-                file=f,
-                language="pt",
-            )
+            response = await self.client.audio.transcriptions.create(file=f, **kwargs)
 
         elapsed = (time.monotonic() - start) * 1000
         logger.debug(f"Transcription completed in {elapsed:.0f}ms")

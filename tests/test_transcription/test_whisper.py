@@ -3,7 +3,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from benchmark.transcription.whisper import WhisperTranscriber, _remove_hallucinations
+from benchmark.transcription.whisper import (
+    DEFAULT_PROMPT_GPT4O_TRANSCRIBE,
+    WhisperTranscriber,
+    _remove_hallucinations,
+)
 
 
 @pytest.fixture
@@ -90,3 +94,89 @@ def test_remove_hallucinations_clean_text_unchanged():
 
 def test_remove_hallucinations_strips_whitespace():
     assert _remove_hallucinations("  As rosas não falam  ") == "As rosas não falam"
+
+
+# --- _effective_prompt ---
+
+def test_effective_prompt_whisper1_no_prompt():
+    with patch("benchmark.transcription.whisper.AsyncOpenAI"):
+        t = WhisperTranscriber(model="whisper-1")
+    assert t._effective_prompt() is None
+
+
+def test_effective_prompt_gpt4o_transcribe_no_prompt():
+    with patch("benchmark.transcription.whisper.AsyncOpenAI"):
+        t = WhisperTranscriber(model="gpt-4o-transcribe")
+    assert t._effective_prompt() == DEFAULT_PROMPT_GPT4O_TRANSCRIBE
+
+
+def test_effective_prompt_gpt4o_mini_transcribe_no_prompt():
+    with patch("benchmark.transcription.whisper.AsyncOpenAI"):
+        t = WhisperTranscriber(model="gpt-4o-mini-transcribe")
+    assert t._effective_prompt() is None
+
+
+def test_effective_prompt_custom_overrides_default():
+    with patch("benchmark.transcription.whisper.AsyncOpenAI"):
+        t = WhisperTranscriber(model="gpt-4o-transcribe", prompt="meu prompt")
+    assert t._effective_prompt() == "meu prompt"
+
+
+def test_effective_prompt_custom_overrides_none_model():
+    with patch("benchmark.transcription.whisper.AsyncOpenAI"):
+        t = WhisperTranscriber(model="whisper-1", prompt="meu prompt")
+    assert t._effective_prompt() == "meu prompt"
+
+
+# --- prompt passado à API ---
+
+@patch("benchmark.transcription.whisper.AsyncOpenAI")
+async def test_whisper1_no_prompt_not_sent(mock_openai_cls, audio_file):
+    mock_client = MagicMock()
+    mock_client.audio.transcriptions.create = AsyncMock(return_value=MagicMock(text="texto"))
+    mock_openai_cls.return_value = mock_client
+
+    transcriber = WhisperTranscriber(model="whisper-1")
+    await transcriber.transcribe(audio_file)
+
+    call_kwargs = mock_client.audio.transcriptions.create.call_args.kwargs
+    assert "prompt" not in call_kwargs
+
+
+@patch("benchmark.transcription.whisper.AsyncOpenAI")
+async def test_gpt4o_transcribe_uses_default_prompt(mock_openai_cls, audio_file):
+    mock_client = MagicMock()
+    mock_client.audio.transcriptions.create = AsyncMock(return_value=MagicMock(text="texto"))
+    mock_openai_cls.return_value = mock_client
+
+    transcriber = WhisperTranscriber(model="gpt-4o-transcribe")
+    await transcriber.transcribe(audio_file)
+
+    call_kwargs = mock_client.audio.transcriptions.create.call_args.kwargs
+    assert call_kwargs["prompt"] == DEFAULT_PROMPT_GPT4O_TRANSCRIBE
+
+
+@patch("benchmark.transcription.whisper.AsyncOpenAI")
+async def test_gpt4o_transcribe_custom_prompt_overrides_default(mock_openai_cls, audio_file):
+    mock_client = MagicMock()
+    mock_client.audio.transcriptions.create = AsyncMock(return_value=MagicMock(text="texto"))
+    mock_openai_cls.return_value = mock_client
+
+    transcriber = WhisperTranscriber(model="gpt-4o-transcribe", prompt="prompt customizado")
+    await transcriber.transcribe(audio_file)
+
+    call_kwargs = mock_client.audio.transcriptions.create.call_args.kwargs
+    assert call_kwargs["prompt"] == "prompt customizado"
+
+
+@patch("benchmark.transcription.whisper.AsyncOpenAI")
+async def test_gpt4o_mini_transcribe_no_prompt_not_sent(mock_openai_cls, audio_file):
+    mock_client = MagicMock()
+    mock_client.audio.transcriptions.create = AsyncMock(return_value=MagicMock(text="texto"))
+    mock_openai_cls.return_value = mock_client
+
+    transcriber = WhisperTranscriber(model="gpt-4o-mini-transcribe")
+    await transcriber.transcribe(audio_file)
+
+    call_kwargs = mock_client.audio.transcriptions.create.call_args.kwargs
+    assert "prompt" not in call_kwargs

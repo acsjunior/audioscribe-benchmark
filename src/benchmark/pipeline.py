@@ -21,7 +21,10 @@ logger = logging.getLogger("benchmark")
 class Pipeline:
     def __init__(self, config: ExperimentConfig) -> None:
         self.config = config
-        self.transcriber = WhisperTranscriber(model=config.transcription.model)
+        self.transcriber = WhisperTranscriber(
+            model=config.transcription.model,
+            prompt=config.transcription.transcription_prompt,
+        )
         self.metrics = get_metrics(config.metrics)
 
     def _with_retry(self, func: Callable) -> Callable:

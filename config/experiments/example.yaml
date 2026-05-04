@@ -11,6 +11,14 @@ retry:
 transcription:
   provider: whisper
   model: whisper-1
+  # Modelos disponíveis: whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe
+  #
+  # Exemplo com gpt-4o-transcribe e prompt de contexto personalizado:
+  # model: gpt-4o-transcribe
+  # transcription_prompt: "Samba brasileiro antigo, vocabulário arcaico, português carioca."
+  #
+  # Quando model=gpt-4o-transcribe e transcription_prompt não é definido,
+  # o pipeline usa automaticamente o prompt padrão do projeto.
 
 refinement:
   - provider: openai

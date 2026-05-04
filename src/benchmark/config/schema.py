@@ -14,6 +14,7 @@ class RetryConfig(BaseModel):
 class TranscriptionConfig(BaseModel):
     provider: str = "whisper"
     model: str = "whisper-1"
+    transcription_prompt: str | None = None
 
 
 class RefinementConfig(BaseModel):
