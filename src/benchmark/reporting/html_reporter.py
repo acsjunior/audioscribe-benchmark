@@ -1,5 +1,7 @@
+import html as html_lib
 from collections import defaultdict
 from datetime import datetime
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from jinja2 import Template
@@ -27,6 +29,13 @@ _TEMPLATE = """<!DOCTYPE html>
     .rank-3 td { background: #eff6ff; }
     .baseline { color: #94a3b8; font-style: italic; }
     .error-cell { color: #ef4444; font-size: .78rem; }
+    .cmp-grid { display: flex; gap: 1rem; overflow-x: auto; margin-bottom: 2rem; padding-bottom: .5rem; }
+    .cmp-col { flex: 0 0 260px; background: white; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .cmp-header { font-weight: 600; font-size: .75rem; color: #334155; margin-bottom: .5rem; padding-bottom: .5rem; border-bottom: 1px solid #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cmp-header.gt { color: #0f766e; }
+    .cmp-body { font-size: .78rem; line-height: 1.8; word-break: break-word; }
+    .w-ok  { color: #16a34a; }
+    .w-err { color: #dc2626; }
   </style>
 </head>
 <body>
@@ -87,8 +96,70 @@ _TEMPLATE = """<!DOCTYPE html>
     </tbody>
   </table>
   {% endfor %}
+
+  <h2>Comparação Visual de Transcrições</h2>
+  <p style="font-size:.82rem;color:#64748b;margin-top:-.5rem">
+    <span class="w-ok">■</span> palavra correta &nbsp;
+    <span class="w-err">■</span> palavra divergente do ground truth
+  </p>
+  {% for song_id, song_cmp in comparison.items() %}
+  <h3>{{ song_cmp.interpretacao }} — {{ song_cmp.titulo }}{% if song_cmp.ano %} ({{ song_cmp.ano }}){% endif %}</h3>
+  <div class="cmp-grid">
+    <div class="cmp-col">
+      <div class="cmp-header gt">Ground Truth</div>
+      <div class="cmp-body">{{ song_cmp.ground_truth | e | replace("\n", "<br>") }}</div>
+    </div>
+    {% for entry in song_cmp.entries %}
+    <div class="cmp-col">
+      <div class="cmp-header">{{ entry.label }}</div>
+      <div class="cmp-body">{{ entry.diff_html | safe }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
 </body>
 </html>"""
+
+
+def _highlight_diff(reference: str, hypothesis: str) -> str:
+    """Return hypothesis as HTML with words colored green (match) or red (diverge) vs reference."""
+    ref_words = reference.split()
+    hyp_words = hypothesis.split()
+
+    if not hyp_words:
+        return '<span class="w-err">(vazio)</span>'
+
+    matcher = SequenceMatcher(None, ref_words, hyp_words, autojunk=False)
+    parts: list[str] = []
+    for tag, _i1, _i2, j1, j2 in matcher.get_opcodes():
+        css = "w-ok" if tag == "equal" else "w-err"
+        for word in hyp_words[j1:j2]:
+            parts.append(f'<span class="{css}">{html_lib.escape(word)}</span>')
+
+    return " ".join(parts)
+
+
+def _build_comparison(
+    by_song: dict[str, list[ExperimentResult]],
+) -> dict[str, dict]:
+    comparison: dict[str, dict] = {}
+    for song_id, song_results in by_song.items():
+        ground_truth = song_results[0].ground_truth
+        entries = []
+        for r in song_results:
+            text = r.refined_transcription if r.refined_transcription else r.whisper_transcription
+            entries.append({
+                "label": r.experiment_label,
+                "diff_html": _highlight_diff(ground_truth, text),
+            })
+        comparison[song_id] = {
+            "interpretacao": song_results[0].interpretacao,
+            "titulo": song_results[0].titulo,
+            "ano": song_results[0].ano,
+            "ground_truth": ground_truth,
+            "entries": entries,
+        }
+    return comparison
 
 
 def _build_ranking(results: list[ExperimentResult], metric_names: list[str]) -> list[dict]:
@@ -134,6 +205,7 @@ def write_html(results: list[ExperimentResult], output_path: Path, experiment_na
         by_song[r.song_id].append(r)
 
     ranking = _build_ranking(results, metric_names)
+    comparison = _build_comparison(dict(by_song))
 
     html = Template(_TEMPLATE).render(
         experiment_name=experiment_name,
@@ -143,6 +215,7 @@ def write_html(results: list[ExperimentResult], output_path: Path, experiment_na
         metric_names=metric_names,
         ranking=ranking,
         by_song=dict(by_song),
+        comparison=comparison,
     )
 
     output_path.write_text(html, encoding="utf-8")
