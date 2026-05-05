@@ -1,10 +1,10 @@
 from jiwer import wer
 
-from .base import BaseMetric
+from .base import BaseMetric, normalize
 
 
 class WERMetric(BaseMetric):
     name = "wer"
 
     def compute(self, hypothesis: str, reference: str) -> float:
-        return wer(reference, hypothesis)
+        return wer(normalize(reference), normalize(hypothesis))
