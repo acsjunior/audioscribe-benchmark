@@ -11,7 +11,7 @@ retry:
 transcription:
   provider: whisper
   model: whisper-1
-  voice_isolation: true
+  audio_preprocessing: demucs
 
 refinement:
   - provider: openai

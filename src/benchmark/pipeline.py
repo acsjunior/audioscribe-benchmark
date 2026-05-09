@@ -15,6 +15,7 @@ from .reporting.html_reporter import write_html
 from .reporting.json_reporter import write_json
 from .transcription.whisper import WhisperTranscriber
 from .utils.retry import async_retry
+from .noise_reduction import reduce_noise
 from .voice_isolation import isolate_voice
 
 logger = logging.getLogger("benchmark")
@@ -90,11 +91,18 @@ class Pipeline:
             else:
                 logger.debug(f"  Usando cache: {audio_path.name}")
 
-            if self.config.transcription.voice_isolation:
+            preprocessing = self.config.transcription.audio_preprocessing
+            if preprocessing == "demucs":
                 try:
                     audio_path = isolate_voice(audio_path)
                 except Exception as e:
                     logger.error(f"  Isolamento de voz falhou: {e}")
+                    continue
+            elif preprocessing == "noisereduce":
+                try:
+                    audio_path = reduce_noise(audio_path)
+                except Exception as e:
+                    logger.error(f"  Redução de ruído falhou: {e}")
                     continue
 
             try:

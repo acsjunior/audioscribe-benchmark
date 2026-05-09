@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -15,7 +17,7 @@ class TranscriptionConfig(BaseModel):
     provider: str = "whisper"
     model: str = "whisper-1"
     transcription_prompt: str | None = None
-    voice_isolation: bool = False
+    audio_preprocessing: Literal["demucs", "noisereduce"] | None = None
 
 
 class RefinementConfig(BaseModel):

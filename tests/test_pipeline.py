@@ -236,7 +236,7 @@ async def test_pipeline_calls_isolate_voice_when_enabled(
         catalog_path=str(tmp_path / "catalogo.csv"),
         results_path=str(tmp_path / "results"),
         drive={"audio_dir": str(tmp_path / "inputs")},
-        transcription={"voice_isolation": True},
+        transcription={"audio_preprocessing": "demucs"},
     )
     pipeline = Pipeline(cfg)
     await pipeline.run()
@@ -262,12 +262,62 @@ async def test_pipeline_skips_song_when_isolation_fails(
         catalog_path=str(config.catalog_path),
         results_path=config.results_path,
         drive={"audio_dir": config.drive.audio_dir},
-        transcription={"voice_isolation": True},
+        transcription={"audio_preprocessing": "demucs"},
     )
     pipeline = Pipeline(cfg)
     run_dir = await pipeline.run()
 
     assert not (run_dir / "results.csv").exists()
+
+
+@patch("benchmark.pipeline.reduce_noise")
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_pipeline_calls_reduce_noise_when_enabled(
+    mock_transcriber_cls, mock_load_catalog, mock_reduce_noise, config, fake_song, tmp_path
+):
+    denoised_path = tmp_path / "inputs" / "audio_denoised.wav"
+    denoised_path.parent.mkdir(parents=True, exist_ok=True)
+    denoised_path.write_bytes(b"")
+    mock_reduce_noise.return_value = denoised_path
+
+    mock_transcriber = MagicMock()
+    mock_transcriber.transcribe = AsyncMock(return_value="as rosas nao falam")
+    mock_transcriber_cls.return_value = mock_transcriber
+    mock_load_catalog.return_value = [fake_song]
+
+    cfg = ExperimentConfig(
+        experiment_name="teste",
+        metrics=["wer"],
+        catalog_path=str(tmp_path / "catalogo.csv"),
+        results_path=str(tmp_path / "results"),
+        drive={"audio_dir": str(tmp_path / "inputs")},
+        transcription={"audio_preprocessing": "noisereduce"},
+    )
+    pipeline = Pipeline(cfg)
+    await pipeline.run()
+
+    mock_reduce_noise.assert_called_once()
+    transcribe_call_path = mock_transcriber.transcribe.call_args.args[0]
+    assert transcribe_call_path == denoised_path
+
+
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_pipeline_no_preprocessing_by_default(
+    mock_transcriber_cls, mock_load_catalog, config, fake_song
+):
+    mock_transcriber = MagicMock()
+    mock_transcriber.transcribe = AsyncMock(return_value="as rosas nao falam")
+    mock_transcriber_cls.return_value = mock_transcriber
+    mock_load_catalog.return_value = [fake_song]
+
+    pipeline = Pipeline(config)
+    await pipeline.run()
+
+    call_path = mock_transcriber.transcribe.call_args.args[0]
+    assert "_vocals" not in str(call_path)
+    assert "_denoised" not in str(call_path)
 
 
 @patch("benchmark.pipeline.load_catalog")
