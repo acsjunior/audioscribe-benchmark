@@ -7,15 +7,17 @@ VOCALS_SUFFIX = "_vocals"
 VOCALS_EXTENSION = ".wav"
 
 try:
+    import soundfile as sf
     import torch
-    import torchaudio
     from demucs.apply import apply_model
+    from demucs.audio import AudioFile
     from demucs.pretrained import get_model
     _demucs_available = True
 except ImportError:
+    sf = None  # type: ignore[assignment]
     torch = None  # type: ignore[assignment]
-    torchaudio = None  # type: ignore[assignment]
     apply_model = None  # type: ignore[assignment]
+    AudioFile = None  # type: ignore[assignment]
     get_model = None  # type: ignore[assignment]
     _demucs_available = False
 
@@ -32,8 +34,8 @@ def isolate_voice(audio_path: Path) -> Path:
     """
     if not _demucs_available:
         raise ImportError(
-            "demucs e torchaudio são necessários para isolamento de voz. "
-            "Instale com: uv add demucs"
+            "demucs, torchaudio e soundfile são necessários para isolamento de voz. "
+            "Instale com: uv add demucs soundfile"
         )
 
     output_path = isolated_voice_path(audio_path)
@@ -43,32 +45,23 @@ def isolate_voice(audio_path: Path) -> Path:
 
     logger.info(f"  Isolando voz: {audio_path.name} → {output_path.name}")
 
-    model = get_model("htdemucs")
-    model.eval()
+    model = get_model(name="htdemucs")
+    model.to("cpu")
 
-    wav, sr = torchaudio.load(str(audio_path))
-
-    # Ensure stereo
-    if wav.shape[0] == 1:
-        wav = wav.repeat(2, 1)
-    elif wav.shape[0] > 2:
-        wav = wav[:2]
-
-    # Resample if needed
-    if sr != model.samplerate:
-        wav = torchaudio.functional.resample(wav, sr, model.samplerate)
-
-    # Normalize
-    ref = wav.mean(0)
-    wav = (wav - ref.mean()) / (ref.std() + 1e-8)
+    wav = AudioFile(audio_path).read(
+        streams=0,
+        samplerate=model.samplerate,
+        channels=model.audio_channels,
+    )
 
     with torch.no_grad():
-        sources = apply_model(model, wav.unsqueeze(0))
+        sources = apply_model(model, wav[None], device="cpu")[0]
 
-    vocals_idx = list(model.sources).index("vocals")
-    vocals = sources[0, vocals_idx]
-    vocals = vocals * (ref.std() + 1e-8) + ref.mean()
+    vocals = sources[model.sources.index("vocals")]
 
-    torchaudio.save(str(output_path), vocals.cpu(), model.samplerate)
+    if vocals.shape[0] > 1:
+        vocals = torch.mean(vocals, dim=0, keepdim=True)
+
+    sf.write(str(output_path), vocals.T.cpu().numpy(), samplerate=model.samplerate)
     logger.info(f"  Voz isolada salva: {output_path.name}")
     return output_path
