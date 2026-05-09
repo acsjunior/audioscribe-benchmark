@@ -3,8 +3,8 @@
 credentials.json
 token.json
 
-# Áudios baixados
-data/inputs/*.mp3
+# Áudios baixados e pré-processados
+data/inputs/
 
 # Python
 __pycache__/
