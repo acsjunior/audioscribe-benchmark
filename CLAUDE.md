@@ -194,7 +194,7 @@ Para cada música no catálogo:
 Não há pastas por música nem arquivos `ground_truth.md`. Todos os metadados e letras vivem em `data/catalogo.csv`. Os áudios são baixados sob demanda e cacheados em `data/inputs/`.
 
 ### Google Drive — Download com Cache
-`gdrive.py` implementa OAuth2 via `google-auth-oauthlib`. Na primeira execução abre o browser para autenticação; o token é salvo em `token.json` e reutilizado automaticamente. O download é ignorado se o arquivo já existir localmente.
+`gdrive.py` implementa OAuth2 via `google-auth-oauthlib`. Na primeira execução abre o browser para autenticação; o token é salvo em `token.json` e reutilizado automaticamente. O cache é verificado pelo nome do arquivo (coluna `Arquivo` do catálogo) dentro de `audio_dir`. Se o arquivo já existir localmente, o download é ignorado — tanto no pipeline (`pipeline.py`) quanto dentro de `download_audio()` (`gdrive.py`).
 
 ### Normalização nas Métricas
 WER e CER normalizam os textos antes do cálculo: converte para minúsculas, remove pontuação e colapsa espaços/quebras de linha. Acentuação é preservada — diferenças como "não" vs "nao" continuam sendo contadas como erro.
@@ -208,11 +208,14 @@ Cada métrica implementa `BaseMetric` e é registrada em `METRIC_REGISTRY`. Mét
 ### Prompts como Arquivos Externos
 Prompts definidos em arquivos YAML em `prompts/`. O código nunca hardcoda strings de prompt. Cada experimento registra o caminho e nome do prompt usado para rastreabilidade total.
 
+### Metadata nos Prompts
+O bloco `user:` dos prompts suporta variáveis `{titulo}`, `{autoria}`, `{interpretacao}`, `{ano}` além de `{transcription}`. O pipeline extrai esses valores do catálogo e os passa para `PromptConfig.format_user()`, que usa `str.format_map(defaultdict(str, ...))` para interpolação segura — variáveis ausentes no template viram string vazia sem KeyError. Isso dá ao LLM contexto de título/artista para ancorar as correções.
+
 ### asyncio desde o início
 Todo o código de I/O usa `async/await` para permitir adição de concorrência no futuro sem refatoração. A execução atual é sequencial (`asyncio.run()`).
 
-### Resiliência
-Retry automático com backoff exponencial via `async_retry()`. Falhas isoladas (download, transcrição ou refinamento) nunca derrubam o pipeline — o erro é registrado e a execução continua.
+### Resiliência e Detecção de Truncamento
+Retry automático com backoff exponencial via `async_retry()`. Falhas isoladas (download, transcrição ou refinamento) nunca derrubam o pipeline — o erro é registrado e a execução continua. Respostas truncadas por limite de tokens levantam `TruncatedResponseError` (detectado via `finish_reason`/`stop_reason` de cada provedor), disparando o retry automaticamente. Se todas as tentativas falharem, o erro aparece no relatório.
 
 ---
 

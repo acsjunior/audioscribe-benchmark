@@ -5,7 +5,7 @@
 1. [Pré-requisitos](#1-pré-requisitos)
 2. [Instalação](#2-instalação)
 3. [Configuração das credenciais](#3-configuração-das-credenciais)
-4. [Preparação do dataset](#4-preparação-do-dataset)
+4. [Preparação do catálogo](#4-preparação-do-catálogo)
 5. [Configuração dos experimentos](#5-configuração-dos-experimentos)
 6. [Configuração dos prompts](#6-configuração-dos-prompts)
 7. [Executando o pipeline](#7-executando-o-pipeline)
@@ -23,6 +23,7 @@
   - [OpenAI](https://platform.openai.com/api-keys) — para Whisper e GPT-4o
   - [Anthropic](https://console.anthropic.com/) — para Claude (opcional)
   - [Google](https://ai.google.dev/gemini-api/docs/api-key) — para Gemini (opcional)
+- Credenciais OAuth2 do Google Drive (para download dos áudios)
 
 ---
 
@@ -44,6 +45,8 @@ uv sync --group dev
 
 ## 3. Configuração das credenciais
 
+### 3.1 Chaves de API dos LLMs
+
 Copie o arquivo de exemplo e preencha com suas chaves:
 
 ```bash
@@ -58,65 +61,69 @@ ANTHROPIC_API_KEY=sk-ant-...
 GOOGLE_API_KEY=AIza...
 ```
 
-Você só precisa preencher as chaves dos provedores que for usar.
-O pipeline ignora automaticamente os provedores não configurados no experimento.
+Você só precisa preencher as chaves dos provedores que for usar no experimento.
+
+### 3.2 Google Drive — OAuth2
+
+Os áudios ficam em uma pasta privada do Google Drive e são baixados automaticamente.
+Para isso é necessário um arquivo `credentials.json` com as credenciais OAuth2.
+
+**Passos para obter o `credentials.json`:**
+
+1. Acesse o [Google Cloud Console](https://console.cloud.google.com)
+2. Crie um projeto (ou selecione um existente)
+3. Ative a **Google Drive API**: menu lateral → **APIs e Serviços** → **Biblioteca** → pesquise "Google Drive API" → Ativar
+4. Crie a credencial: **APIs e Serviços** → **Credenciais** → **Criar credenciais** → **ID do cliente OAuth**
+5. Tipo de aplicativo: **App para computador** → preencha um nome → Criar
+6. Faça o download do JSON gerado e renomeie para `credentials.json` na raiz do projeto
+7. Configure a tela de consentimento: **APIs e Serviços** → **Tela de Permissão OAuth** → **Público Alvo** → adicione seu e-mail como **usuário de teste**
+
+Na **primeira execução**, o browser abrirá para autenticação. O token é salvo em
+`token.json` e reutilizado automaticamente nas próximas execuções.
+
+> Ambos `credentials.json` e `token.json` estão no `.gitignore` e nunca devem ser
+> commitados.
 
 ---
 
-## 4. Preparação do dataset
+## 4. Preparação do catálogo
 
-### 4.1 Estrutura de pastas
+O arquivo `data/catalogo.csv` é a **fonte única de verdade** do dataset. Ele contém
+os metadados de cada música, a letra validada (ground truth) e o link para o áudio
+no Google Drive.
 
-Cada música deve ter sua própria pasta dentro de `data/dataset/`.
-O nome da pasta deve seguir o padrão **slugify**: letras minúsculas, sem acentos,
-espaços substituídos por hífens.
+### 4.1 Colunas do catálogo
 
-```
-data/dataset/
-├── cartola-as-rosas-nao-falam/
-│   ├── audio.mp3
-│   └── ground_truth.md
-├── nelson-cavaquinho-folhas-secas/
-│   ├── audio.mp3
-│   └── ground_truth.md
-└── joao-da-baiana-no-tabuleiro-da-baiana/
-    ├── audio.mp3
-    └── ground_truth.md
-```
+| Coluna | Descrição |
+|---|---|
+| `Música` | Título da música |
+| `Autoria` | Compositor(es) |
+| `Interpretação` | Intérprete(s) |
+| `Acompanhamento` | Conjunto/orquestra (ignorado pelo pipeline) |
+| `Disco` | Nome do disco/gravadora e número |
+| `Ano` | Ano de gravação |
+| `Gênero` | Gênero musical |
+| `Letra` | Ground truth — letra completa e validada da música |
+| `Arquivo` | Nome exato do arquivo MP3 no Google Drive (ex: `samba_cartola.mp3`) |
+| `URL` | URL de compartilhamento do Google Drive |
+| `Fonte` | URL da fonte da letra (ignorado) |
+| `Acesso` | Data de acesso à fonte (ignorado) |
 
-### 4.2 Arquivo de áudio
+### 4.2 Ground truth (coluna `Letra`)
 
-- Formato: `.mp3`
-- O nome do arquivo pode ser qualquer um — o pipeline encontra automaticamente o `.mp3` da pasta
-- **Obrigatório:** deve haver exatamente um arquivo `.mp3` por pasta. Se houver zero ou mais de um, a música é ignorada com aviso no log
-- Não há restrição de duração, mas arquivos muito longos aumentam o custo da API do Whisper
+A coluna `Letra` deve conter a letra completa e validada da música, exatamente como
+seria a transcrição perfeita. A qualidade do benchmark depende diretamente da
+qualidade dessas letras — revise cada uma com atenção.
 
-### 4.3 Ground truth (letra validada)
+### 4.3 Download automático dos áudios
 
-Crie o arquivo `ground_truth.md` com o seguinte formato obrigatório:
+O pipeline baixa os áudios automaticamente do Google Drive na primeira vez que cada
+música é processada. Os arquivos são salvos em `data/inputs/` usando o nome definido
+na coluna `Arquivo`.
 
-```markdown
----
-titulo: As Rosas Não Falam
-autoria: Cartola
-interpretacao: Cartola
-disco: Cartola
-ano: 1976
-genero: Samba
----
-As rosas não falam
-Apenas perfumam
-E com seus encantos
-Me fazem chorar
-```
-
-**Regras importantes:**
-- O arquivo usa o formato **Markdown com frontmatter YAML** — o bloco de metadados fica entre dois `---`
-- Os campos devem seguir exatamente a ordem acima
-- A letra começa imediatamente após o segundo `---`
-- `autoria` é o compositor da música; `interpretacao` é o cantor/grupo que grava
-- Revise cuidadosamente a letra — a qualidade do ground truth é fundamental para a acurácia do benchmark
-- Para anos incertos, você pode usar strings como `"c. 1932"` ou `"1930?"`
+**Cache automático:** se o arquivo já existir em `data/inputs/`, o download é
+ignorado. Isso permite interromper e retomar experimentos sem rebaixar áudios já
+obtidos, e evita custos desnecessários de rede.
 
 ---
 
@@ -125,7 +132,7 @@ Me fazem chorar
 Os experimentos são definidos em arquivos YAML dentro de `config/experiments/`.
 Você pode criar quantos arquivos quiser — um para cada bateria de testes.
 
-### 5.1 Estrutura do arquivo de configuração
+### 5.1 Estrutura completa do arquivo de configuração
 
 ```yaml
 experiment_name: "nome-do-experimento"  # usado para nomear a pasta de resultados
@@ -135,27 +142,32 @@ logging:
   output_file: logs/experimento.log
 
 retry:
-  max_attempts: 3     # tentativas por chamada de API
+  max_attempts: 3     # tentativas por chamada de API (inclui truncamentos)
   backoff_factor: 2.0 # fator de espera exponencial entre tentativas
 
 transcription:
   provider: whisper
-  model: whisper-1
+  model: whisper-1    # whisper-1 | gpt-4o-transcribe | gpt-4o-mini-transcribe
+  # transcription_prompt: "prompt opcional para contextualizar o Whisper"
 
 refinement:
-  - provider: openai
+  - provider: openai       # openai | anthropic | google
     model: gpt-4o
     prompt_file: prompts/minimalist.yaml
-  - provider: openai
-    model: gpt-4o
-    prompt_file: prompts/rich_context.yaml
+    temperature: 0.0       # padrão — use 0.0 para resultados reproduzíveis
 
 metrics:
   - wer
   - cer
   - bertscore
 
-dataset_path: data/dataset
+catalog_path: data/catalogo.csv
+
+drive:
+  credentials_path: credentials.json
+  token_path: token.json
+  audio_dir: data/inputs   # onde os MP3s são baixados e cacheados
+
 results_path: results
 ```
 
@@ -167,6 +179,14 @@ results_path: results
 | `anthropic` | `claude-opus-4-7`, `claude-sonnet-4-6` |
 | `google` | `gemini-2.0-flash`, `gemini-1.5-pro` |
 
+Para o Whisper:
+
+| Modelo | Notas |
+|---|---|
+| `whisper-1` | Sem suporte a prompt de contexto |
+| `gpt-4o-transcribe` | Suporta `transcription_prompt`; usa prompt padrão do projeto se omitido |
+| `gpt-4o-mini-transcribe` | Versão mais leve; sem prompt padrão automático |
+
 ### 5.3 Métricas disponíveis
 
 | Métrica | Descrição | Interpretação |
@@ -174,6 +194,10 @@ results_path: results
 | `wer` | Word Error Rate | Menor é melhor (0 = perfeito) |
 | `cer` | Character Error Rate | Menor é melhor (0 = perfeito) |
 | `bertscore` | BERTScore F1 | Maior é melhor (1 = perfeito) |
+
+> **Normalização:** WER e CER convertem para minúsculas e ignoram pontuação antes
+> do cálculo, penalizando apenas diferenças de conteúdo lexical. Acentuação é
+> preservada — "nao" vs "não" ainda conta como erro.
 
 ### 5.4 Exemplos de baterias de testes
 
@@ -187,6 +211,9 @@ refinement:
 metrics:
   - wer
   - cer
+catalog_path: data/catalogo.csv
+drive:
+  audio_dir: data/inputs
 ```
 
 **Comparação completa de prompts:**
@@ -209,6 +236,9 @@ metrics:
   - wer
   - cer
   - bertscore
+catalog_path: data/catalogo.csv
+drive:
+  audio_dir: data/inputs
 ```
 
 **Comparação entre provedores:**
@@ -228,13 +258,17 @@ metrics:
   - wer
   - cer
   - bertscore
+catalog_path: data/catalogo.csv
+drive:
+  audio_dir: data/inputs
 ```
 
 ---
 
 ## 6. Configuração dos prompts
 
-Os prompts ficam em `prompts/` e são referenciados pelo campo `prompt_file` no YAML do experimento.
+Os prompts ficam em `prompts/` e são referenciados pelo campo `prompt_file` no YAML
+do experimento.
 
 ### 6.1 Formato do arquivo de prompt
 
@@ -244,6 +278,11 @@ description: "Descrição"      # texto livre para documentação
 system: |
   Instrução de sistema para o LLM.
 user: |
+  Música: {titulo}
+  Autoria: {autoria}
+  Intérprete: {interpretacao}
+  Ano: {ano}
+
   Instrução do usuário. Use {transcription} onde a
   transcrição do Whisper deve ser inserida.
 examples:                     # opcional — para prompts few-shot
@@ -251,18 +290,31 @@ examples:                     # opcional — para prompts few-shot
     output: "texto corrigido"
 ```
 
-### 6.2 Prompts disponíveis
+### 6.2 Variáveis disponíveis nos prompts
+
+O bloco `user:` suporta as seguintes variáveis, preenchidas automaticamente pelo
+pipeline com os dados de cada música do catálogo:
+
+| Variável | Origem |
+|---|---|
+| `{transcription}` | Transcrição bruta gerada pelo Whisper |
+| `{titulo}` | Coluna `Música` do catálogo |
+| `{autoria}` | Coluna `Autoria` do catálogo |
+| `{interpretacao}` | Coluna `Interpretação` do catálogo |
+| `{ano}` | Coluna `Ano` do catálogo |
+
+Variáveis ausentes no template são substituídas por string vazia (sem erro).
+
+### 6.3 Prompts disponíveis
 
 | Arquivo | Estratégia |
 |---|---|
-| `prompts/minimalist.yaml` | Correção ortográfica mínima |
-| `prompts/rich_context.yaml` | Contexto rico sobre sambas antigos |
-| `prompts/rich_context_v2.yaml` | Contexto rico + coerência narrativa e distinção de tempos/modos verbais |
-| `prompts/archaic_vocab.yaml` | Foco em vocabulário arcaico e gírias |
-| `prompts/archaic_vocab_v2.yaml` | Vocabulário arcaico + coerência narrativa e distinção de tempos/modos verbais |
-| `prompts/few_shot.yaml` | Exemplos de correção guiando o modelo |
+| `prompts/minimalist.yaml` | Correção ortográfica mínima sem contexto adicional |
+| `prompts/rich_context.yaml` | Contexto histórico rico sobre sambas antigos |
+| `prompts/archaic_vocab.yaml` | Foco em vocabulário arcaico, gírias e contrações fonéticas |
+| `prompts/few_shot.yaml` | Exemplos de correção guiando o modelo (few-shot) |
 
-### 6.3 Criando um prompt personalizado
+### 6.4 Criando um prompt personalizado
 
 Crie um novo arquivo em `prompts/` e referencie-o no YAML do experimento:
 
@@ -272,7 +324,8 @@ description: "Minha estratégia personalizada"
 system: |
   Sua instrução de sistema aqui.
 user: |
-  Sua instrução aqui.
+  Música: {titulo}
+  Intérprete: {interpretacao}
 
   {transcription}
 ```
@@ -298,17 +351,23 @@ Opções:
 No modo `normal`, o log exibe o progresso de cada música e experimento:
 
 ```
-INFO  Dataset carregado: 3 música(s)
-INFO  [1/3] Cartola — As Rosas Não Falam
+INFO  Catálogo carregado: 28 música(s)
+INFO  [1/28] Cartola — As Rosas Não Falam
+INFO    Download concluído
 INFO    Transcrição concluída
-INFO    [1/2] openai/gpt-4o [prompts/minimalist.yaml]
+INFO    [1/4] openai/gpt-4o [prompts/minimalist.yaml]
 INFO      OK — tokens: 312, tempo: 1823ms
-INFO    [2/2] openai/gpt-4o [prompts/rich_context.yaml]
+INFO    [2/4] openai/gpt-4o [prompts/rich_context.yaml]
 INFO      OK — tokens: 487, tempo: 2104ms
-INFO  [2/3] Nelson Cavaquinho — Folhas Secas
+INFO  [2/28] Nelson Cavaquinho — Folhas Secas
+INFO    Usando cache: folhas_secas.mp3
+INFO    Transcrição concluída
 ...
-INFO  Resultados salvos em: results/experimento-01_20260503_143022
+INFO  Resultados salvos em: results/experimento-01_20260509_143022
 ```
+
+Quando o áudio já foi baixado anteriormente, o log exibe `Usando cache: <arquivo>` e
+o download é ignorado.
 
 Para detalhes de cada chamada de API, use o modo `verbose` no YAML:
 
@@ -316,6 +375,13 @@ Para detalhes de cada chamada de API, use o modo `verbose` no YAML:
 logging:
   mode: verbose
 ```
+
+### 7.3 Resiliência e retry
+
+O pipeline tem retry automático com backoff exponencial para chamadas de API.
+Se uma resposta do LLM for truncada por limite de tokens, ela é descartada e a
+chamada é repetida automaticamente. Falhas isoladas nunca derrubam o pipeline —
+o erro é registrado no CSV/HTML e a execução continua para as demais músicas.
 
 ---
 
@@ -343,22 +409,24 @@ Abra o `report.html` no navegador para visualizar:
 ### 8.2 Arquivo CSV
 
 Cada linha representa um experimento (uma música × uma combinação LLM + prompt).
-Útil para análises adicionais em planilhas ou Python/pandas.
+A linha com `refinement_provider` vazio é o **baseline** — a transcrição bruta do
+Whisper sem nenhum refinamento.
 
 Colunas principais:
 
 | Coluna | Descrição |
 |---|---|
-| `song_id` | Identificador da pasta da música |
+| `song_id` | Identificador único gerado por slugify: `{interpretacao}-{titulo}` |
 | `titulo` | Título da música |
 | `autoria` | Compositor(es) |
 | `interpretacao` | Intérprete(s) |
 | `disco` | Nome do disco |
-| `ano` | Ano de lançamento |
+| `ano` | Ano de gravação |
 | `genero` | Gênero musical |
-| `refinement_provider` | Provedor LLM (`baseline` se sem refinamento) |
+| `refinement_provider` | Provedor LLM (vazio = baseline sem refinamento) |
 | `refinement_model` | Modelo utilizado |
 | `prompt_name` | Nome do prompt |
+| `prompt_file` | Caminho do arquivo de prompt |
 | `wer` / `cer` / `bertscore` | Scores das métricas |
 | `tokens_used` | Total de tokens consumidos |
 | `response_time_ms` | Tempo de resposta da API em ms |
@@ -374,11 +442,15 @@ Isso permite medir exatamente o ganho (ou perda) de cada estratégia de LLM.
 
 ## 9. Dicas e boas práticas
 
-**Comece pequeno:** teste com 2-3 músicas antes de rodar o dataset completo.
+**Comece pequeno:** teste com 2-3 músicas antes de rodar o catálogo completo.
 Isso reduz custo e tempo, e permite validar que tudo está configurado corretamente.
 
-**Isole uma variável por vez:** para comparar prompts, mantenha o mesmo provedor e modelo.
-Para comparar provedores, use o mesmo prompt.
+**Reaproveite os áudios:** os MP3s baixados ficam em `data/inputs/`. Em experimentos
+subsequentes, o pipeline detecta os arquivos existentes (pelo nome na coluna `Arquivo`)
+e não faz novo download. Rode quantos experimentos quiser sem custo adicional de rede.
+
+**Isole uma variável por vez:** para comparar prompts, mantenha o mesmo provedor e
+modelo. Para comparar provedores, use o mesmo prompt.
 
 **Use o modo verbose para debugging:** ative `mode: verbose` para ver exatamente o
 que está sendo enviado e recebido das APIs.
@@ -390,7 +462,7 @@ incluindo erros e tempos de resposta.
 `comparacao-prompts-openai-2026-05` para facilitar a organização dos resultados.
 
 **Ground truth é tudo:** o benchmark só é tão bom quanto a qualidade das letras
-validadas. Revise cada `ground_truth.md` com cuidado antes de rodar o benchmark.
+no catálogo. Revise cada entrada da coluna `Letra` com cuidado antes de rodar.
 
 ---
 
@@ -399,17 +471,26 @@ validadas. Revise cada `ground_truth.md` com cuidado antes de rodar o benchmark.
 **Erro: `No API key was provided`**
 Verifique se o arquivo `.env` existe na raiz do projeto e contém a chave correta.
 
-**Erro: `Dataset path not found`**
-Confirme que o campo `dataset_path` no YAML aponta para o diretório correto e que
-ele contém subpastas com `audio.mp3` e `ground_truth.md`.
+**Erro: `FileNotFoundError` no catálogo**
+Confirme que o campo `catalog_path` no YAML aponta para o arquivo correto
+(padrão: `data/catalogo.csv`).
 
-**Erro: `Missing audio.mp3` ou `Missing ground_truth.md`**
-O pipeline avisa e pula a música. Verifique os nomes dos arquivos — devem ser
-exatamente `audio.mp3` e `ground_truth.md`.
+**Erro: `URL inválida do Google Drive`**
+A URL na coluna `URL` do catálogo não segue o formato esperado. Deve conter
+`/file/d/<ID>/`. Verifique o link de compartilhamento do arquivo no Drive.
+
+**Erro: `Acesso bloqueado` no browser ao autenticar**
+Seu e-mail não está na lista de usuários de teste do app OAuth.
+Acesse: Google Cloud Console → APIs e Serviços → Tela de Permissão OAuth →
+Público Alvo → adicione seu e-mail como usuário de teste.
+
+**Música pulada com `Arquivo não encontrado e Google Drive não configurado`**
+O arquivo MP3 não está em `data/inputs/` e o `credentials.json` não foi encontrado.
+Verifique se o `credentials.json` está na raiz do projeto.
 
 **Experimento registrado com erro no CSV**
-Uma chamada de API falhou após todas as tentativas de retry. Verifique o arquivo
-de log para detalhes. O pipeline continua os demais experimentos normalmente.
+Uma chamada de API falhou após todas as tentativas de retry (incluindo truncamentos).
+Verifique o arquivo de log para detalhes. O pipeline continua normalmente.
 
 **BERTScore muito lento na primeira execução**
 Comportamento esperado — o modelo está sendo baixado (~1-2 GB). Nas execuções
