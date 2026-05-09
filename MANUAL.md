@@ -187,6 +187,27 @@ Para o Whisper:
 | `gpt-4o-transcribe` | Suporta `transcription_prompt`; usa prompt padrão do projeto se omitido |
 | `gpt-4o-mini-transcribe` | Versão mais leve; sem prompt padrão automático |
 
+### 5.3 Isolamento de voz com demucs
+
+Quando `voice_isolation: true`, o pipeline processa cada MP3 com demucs antes de enviar para o Whisper. O objetivo é remover ruído de instrumentos e entregar um sinal de voz mais limpo para a transcrição.
+
+```yaml
+transcription:
+  provider: whisper
+  model: whisper-1
+  voice_isolation: true  # padrão: false
+```
+
+**Como funciona:**
+- O áudio isolado é salvo como `<nome-original>_vocals.wav` em `data/inputs/`
+- Cache automático: se o `_vocals.wav` já existir, o demucs não roda novamente
+- O Whisper transcreve o `.wav` isolado — o MP3 original não é alterado
+- Requer instalação manual do demucs: `uv add demucs` (dependência pesada com PyTorch)
+
+> **Atenção:** demucs foi treinado principalmente em música moderna. Em gravações
+> antigas (1920-1950), pode introduzir artefatos sonoros. Recomenda-se testar
+> com um subconjunto antes de rodar no dataset completo.
+
 ### 5.3 Métricas disponíveis
 
 | Métrica | Descrição | Interpretação |

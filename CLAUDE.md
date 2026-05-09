@@ -208,6 +208,9 @@ Cada métrica implementa `BaseMetric` e é registrada em `METRIC_REGISTRY`. Mét
 ### Prompts como Arquivos Externos
 Prompts definidos em arquivos YAML em `prompts/`. O código nunca hardcoda strings de prompt. Cada experimento registra o caminho e nome do prompt usado para rastreabilidade total.
 
+### Isolamento de Voz (demucs)
+Quando `transcription.voice_isolation: true` no YAML, o pipeline processa o MP3 original com demucs (modelo `htdemucs`) antes de passar para o Whisper. O stem de voz é salvo como `<nome>_vocals.wav` na mesma pasta do áudio original (`audio_dir`). Na segunda execução, o arquivo `.wav` já existe e o demucs não roda novamente. O módulo `voice_isolation.py` tenta importar `demucs` no nível do módulo; se não instalado, `Separator` fica `None` e `isolate_voice()` levanta `ImportError` com instrução de instalação. Demucs é uma dependência opcional: `uv add demucs`.
+
 ### Metadata nos Prompts
 O bloco `user:` dos prompts suporta variáveis `{titulo}`, `{autoria}`, `{interpretacao}`, `{ano}` além de `{transcription}`. O pipeline extrai esses valores do catálogo e os passa para `PromptConfig.format_user()`, que usa `str.format_map(defaultdict(str, ...))` para interpolação segura — variáveis ausentes no template viram string vazia sem KeyError. Isso dá ao LLM contexto de título/artista para ancorar as correções.
 

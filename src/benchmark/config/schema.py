@@ -15,6 +15,7 @@ class TranscriptionConfig(BaseModel):
     provider: str = "whisper"
     model: str = "whisper-1"
     transcription_prompt: str | None = None
+    voice_isolation: bool = False
 
 
 class RefinementConfig(BaseModel):

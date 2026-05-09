@@ -19,6 +19,11 @@ transcription:
   #
   # Quando model=gpt-4o-transcribe e transcription_prompt não é definido,
   # o pipeline usa automaticamente o prompt padrão do projeto.
+  #
+  # voice_isolation: false  # true para isolar a voz via demucs antes de transcrever
+  #                         # Requer: uv add demucs
+  #                         # O arquivo isolado é salvo como <nome>_vocals.wav em data/inputs/
+  #                         # e reutilizado automaticamente em execuções seguintes.
 
 refinement:
   - provider: openai

@@ -15,6 +15,7 @@ from .reporting.html_reporter import write_html
 from .reporting.json_reporter import write_json
 from .transcription.whisper import WhisperTranscriber
 from .utils.retry import async_retry
+from .voice_isolation import isolate_voice
 
 logger = logging.getLogger("benchmark")
 
@@ -88,6 +89,13 @@ class Pipeline:
                     continue
             else:
                 logger.debug(f"  Usando cache: {audio_path.name}")
+
+            if self.config.transcription.voice_isolation:
+                try:
+                    audio_path = isolate_voice(audio_path)
+                except Exception as e:
+                    logger.error(f"  Isolamento de voz falhou: {e}")
+                    continue
 
             try:
                 transcription = await transcribe_fn(audio_path)

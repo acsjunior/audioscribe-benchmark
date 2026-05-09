@@ -214,6 +214,62 @@ async def test_pipeline_downloads_missing_audio(
     mock_download.assert_called_once()
 
 
+@patch("benchmark.pipeline.isolate_voice")
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_pipeline_calls_isolate_voice_when_enabled(
+    mock_transcriber_cls, mock_load_catalog, mock_isolate_voice, config, fake_song, tmp_path
+):
+    isolated_path = tmp_path / "inputs" / "audio_vocals.wav"
+    isolated_path.parent.mkdir(parents=True, exist_ok=True)
+    isolated_path.write_bytes(b"")
+    mock_isolate_voice.return_value = isolated_path
+
+    mock_transcriber = MagicMock()
+    mock_transcriber.transcribe = AsyncMock(return_value="as rosas nao falam")
+    mock_transcriber_cls.return_value = mock_transcriber
+    mock_load_catalog.return_value = [fake_song]
+
+    cfg = ExperimentConfig(
+        experiment_name="teste",
+        metrics=["wer"],
+        catalog_path=str(tmp_path / "catalogo.csv"),
+        results_path=str(tmp_path / "results"),
+        drive={"audio_dir": str(tmp_path / "inputs")},
+        transcription={"voice_isolation": True},
+    )
+    pipeline = Pipeline(cfg)
+    await pipeline.run()
+
+    mock_isolate_voice.assert_called_once()
+    transcribe_call_path = mock_transcriber.transcribe.call_args.args[0]
+    assert transcribe_call_path == isolated_path
+
+
+@patch("benchmark.pipeline.isolate_voice")
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_pipeline_skips_song_when_isolation_fails(
+    mock_transcriber_cls, mock_load_catalog, mock_isolate_voice, config, fake_song
+):
+    mock_isolate_voice.side_effect = RuntimeError("demucs error")
+    mock_transcriber_cls.return_value = MagicMock()
+    mock_load_catalog.return_value = [fake_song]
+
+    cfg = ExperimentConfig(
+        experiment_name="teste",
+        metrics=["wer"],
+        catalog_path=str(config.catalog_path),
+        results_path=config.results_path,
+        drive={"audio_dir": config.drive.audio_dir},
+        transcription={"voice_isolation": True},
+    )
+    pipeline = Pipeline(cfg)
+    run_dir = await pipeline.run()
+
+    assert not (run_dir / "results.csv").exists()
+
+
 @patch("benchmark.pipeline.load_catalog")
 @patch("benchmark.pipeline.WhisperTranscriber")
 async def test_pipeline_skips_song_when_no_audio_and_no_drive(
