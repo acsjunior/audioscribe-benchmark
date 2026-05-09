@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Pipeline de benchmark para avaliar a melhor abordagem de transcrição de letras de sambas antigos em português. O pipeline transcreve áudios via API do Whisper, opcionalmente refina as transcrições com LLMs, e compara os resultados com letras validadas (ground truth) usando métricas de acurácia.
+Pipeline de benchmark para avaliar a melhor abordagem de transcrição de letras de sambas antigos em português. O pipeline lê um catálogo CSV, baixa os áudios do Google Drive, transcreve via API do Whisper, opcionalmente refina as transcrições com LLMs, e compara os resultados com as letras do catálogo usando métricas de acurácia.
 
 **Domínio específico:** sambas antigos em português — vocabulário arcaico, gírias da época, qualidade de áudio inferior.
 
@@ -30,7 +30,8 @@ Sambas antigos brasileiros das décadas de 1920-1950. Características relevante
 | Gerenciador de dependências | `uv` + `pyproject.toml` |
 | Linting/formatação | `ruff` |
 | Testes | `pytest` + mocks para APIs externas |
-| Credenciais | `.env` via `python-dotenv` |
+| Credenciais de API | `.env` via `python-dotenv` |
+| Credenciais Google Drive | OAuth2 via `google-auth-oauthlib` |
 
 ---
 
@@ -42,24 +43,27 @@ audioscribe-benchmark/
 ├── .env.example
 ├── .gitignore
 ├── pyproject.toml
+├── credentials.json          # OAuth2 do Google Drive (não commitado)
+├── token.json                # Token salvo após primeira auth (não commitado)
 ├── config/
 │   └── experiments/
-│       └── example.yaml          # modelo de configuração de bateria de testes
+│       └── example.yaml      # modelo de configuração de bateria de testes
 ├── data/
-│   └── dataset/
-│       └── {artista-slug}-{titulo-slug}/
-│           ├── {qualquer-nome}.mp3   # exatamente um .mp3 por pasta
-│           └── ground_truth.md
+│   ├── catalogo.csv          # fonte única de verdade: metadados + letras + URLs
+│   └── inputs/               # áudios baixados do Google Drive (não commitados)
 ├── prompts/
 │   ├── minimalist.yaml
 │   ├── rich_context.yaml
+│   ├── rich_context_v2.yaml
 │   ├── archaic_vocab.yaml
+│   ├── archaic_vocab_v2.yaml
 │   └── few_shot.yaml
 ├── src/
 │   └── benchmark/
 │       ├── __init__.py
 │       ├── models.py             # SongData, ExperimentResult
-│       ├── dataset.py            # carregamento e parsing do dataset
+│       ├── dataset.py            # load_catalog() — lê catalogo.csv
+│       ├── gdrive.py             # OAuth2 + download do Google Drive
 │       ├── pipeline.py           # orquestrador principal
 │       ├── cli.py                # entrypoint CLI
 │       ├── config/
@@ -68,7 +72,7 @@ audioscribe-benchmark/
 │       ├── transcription/
 │       │   ├── __init__.py
 │       │   ├── base.py           # BaseTranscriber (ABC)
-│       │   └── whisper.py        # WhisperTranscriber (whisper-1 via API)
+│       │   └── whisper.py        # WhisperTranscriber (whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe)
 │       ├── refinement/
 │       │   ├── __init__.py       # REFINER_REGISTRY, get_refiner()
 │       │   ├── base.py           # BaseRefiner, PromptConfig, load_prompt()
@@ -77,7 +81,7 @@ audioscribe-benchmark/
 │       │   └── google.py         # GoogleRefiner (Gemini)
 │       ├── metrics/
 │       │   ├── __init__.py       # METRIC_REGISTRY, get_metrics()
-│       │   ├── base.py           # BaseMetric (ABC)
+│       │   ├── base.py           # BaseMetric (ABC) + normalize()
 │       │   ├── wer.py            # WERMetric
 │       │   ├── cer.py            # CERMetric
 │       │   └── bertscore.py      # BERTScoreMetric
@@ -93,8 +97,13 @@ audioscribe-benchmark/
 ├── tests/
 │   ├── __init__.py
 │   ├── test_config/
+│   ├── test_dataset.py
 │   ├── test_metrics/
+│   ├── test_models.py
+│   ├── test_pipeline.py
 │   ├── test_refinement/
+│   ├── test_reporting/
+│   ├── test_transcription/
 │   └── test_utils/
 ├── logs/                         # logs de execução (gerado automaticamente)
 └── results/                      # saída de cada execução (gerado automaticamente)
@@ -106,70 +115,124 @@ audioscribe-benchmark/
 
 ---
 
-## Convenções do Dataset
+## Formato do Catálogo
 
-### Nomenclatura de pastas
-Usar **slugify**: sem acentos, letras maiúsculas ou caracteres especiais. Espaços viram hífens.
+O arquivo `data/catalogo.csv` é a fonte única de verdade do dataset. Colunas esperadas:
 
-```
-cartola-as-rosas-nao-falam/
-nelson-cavaquinho-folhas-secas/
-```
+| Coluna | Descrição |
+|---|---|
+| `Música` | Título da música |
+| `Autoria` | Compositor(es) |
+| `Interpretação` | Intérprete(s) |
+| `Acompanhamento` | Conjunto/orquestra (ignorado pelo pipeline) |
+| `Disco` | Nome do disco/gravadora e número |
+| `Ano` | Ano de gravação |
+| `Gênero` | Gênero musical |
+| `Letra` | Ground truth — letra completa da música |
+| `Arquivo` | Nome do arquivo MP3 no Google Drive |
+| `URL` | URL de compartilhamento do Google Drive |
+| `Fonte` | URL da fonte da informação (ignorado) |
+| `Acesso` | Data de acesso (ignorado) |
 
-### Formato do ground_truth.md
-Cabeçalho YAML-like com metadados, seguido de separador `---` e a letra:
+O `song_id` é gerado automaticamente via slugify: `{interpretacao_slug}-{titulo_slug}`.
 
-```markdown
 ---
-titulo: As Rosas Não Falam
-autoria: Cartola
-interpretacao: Cartola
-disco: Cartola
-ano: 1976
-genero: Samba
----
-As rosas não falam
-Apenas perfumam
-...
+
+## Configuração do Experimento (YAML)
+
+```yaml
+experiment_name: "experimento-01"
+
+logging:
+  mode: normal          # normal | verbose
+  output_file: logs/experimento-01.log
+
+retry:
+  max_attempts: 3
+  backoff_factor: 2.0
+
+transcription:
+  provider: whisper
+  model: whisper-1      # whisper-1 | gpt-4o-transcribe | gpt-4o-mini-transcribe
+  # transcription_prompt: "prompt opcional"  # gpt-4o-transcribe usa prompt padrão se omitido
+
+refinement:
+  - provider: openai        # openai | anthropic | google
+    model: gpt-4o
+    prompt_file: prompts/minimalist.yaml
+    temperature: 0.0        # padrão
+
+metrics:
+  - wer
+  - cer
+  - bertscore
+
+catalog_path: data/catalogo.csv
+
+drive:
+  credentials_path: credentials.json
+  token_path: token.json
+  audio_dir: data/inputs    # onde os MP3s são baixados/cacheados
+
+results_path: results
 ```
 
 ---
 
 ## Arquitetura e Decisões
 
+### Fluxo do Pipeline
+Para cada música no catálogo:
+1. Verifica se o MP3 já existe em `audio_dir` (cache)
+2. Se não existe, baixa do Google Drive via API
+3. Transcreve com Whisper (ou variante)
+4. Para cada configuração de refinamento: refina com o LLM especificado
+5. Calcula métricas comparando com a letra do catálogo
+6. Salva resultados incrementalmente ao final
+
+### Catálogo CSV como Fonte Única
+Não há pastas por música nem arquivos `ground_truth.md`. Todos os metadados e letras vivem em `data/catalogo.csv`. Os áudios são baixados sob demanda e cacheados em `data/inputs/`.
+
+### Google Drive — Download com Cache
+`gdrive.py` implementa OAuth2 via `google-auth-oauthlib`. Na primeira execução abre o browser para autenticação; o token é salvo em `token.json` e reutilizado automaticamente. O download é ignorado se o arquivo já existir localmente.
+
+### Normalização nas Métricas
+WER e CER normalizam os textos antes do cálculo: converte para minúsculas, remove pontuação e colapsa espaços/quebras de linha. Acentuação é preservada — diferenças como "não" vs "nao" continuam sendo contadas como erro.
+
 ### Adapter Pattern — Refinamento com LLMs
-Cada provedor (OpenAI, Anthropic, Google) tem seu próprio adapter implementando `BaseRefiner`. Adicionar um novo provedor requer apenas criar um novo arquivo em `refinement/` e registrá-lo em `REFINER_REGISTRY`. Nenhum outro arquivo precisa ser alterado.
+Cada provedor (OpenAI, Anthropic, Google) tem seu próprio adapter implementando `BaseRefiner`. Adicionar um novo provedor requer apenas criar um novo arquivo em `refinement/` e registrá-lo em `REFINER_REGISTRY`.
 
 ### Módulos de Métricas
-Cada métrica implementa `BaseMetric` e é registrada em `METRIC_REGISTRY`. Adicionar uma nova métrica requer apenas criar um arquivo em `metrics/` e registrá-lo. Métricas iniciais: WER, CER, BERTScore.
+Cada métrica implementa `BaseMetric` e é registrada em `METRIC_REGISTRY`. Métricas disponíveis: WER, CER, BERTScore.
 
 ### Prompts como Arquivos Externos
 Prompts definidos em arquivos YAML em `prompts/`. O código nunca hardcoda strings de prompt. Cada experimento registra o caminho e nome do prompt usado para rastreabilidade total.
-
-### Configuração Centralizada via YAML
-Cada bateria de testes tem seu próprio arquivo YAML em `config/experiments/`. O pipeline é disparado via CLI apontando para esse arquivo. Permite múltiplas configurações sem alterar código.
 
 ### asyncio desde o início
 Todo o código de I/O usa `async/await` para permitir adição de concorrência no futuro sem refatoração. A execução atual é sequencial (`asyncio.run()`).
 
 ### Resiliência
-Retry automático com backoff exponencial via `async_retry()`. Falhas isoladas (por experimento ou por música) nunca derrubam o pipeline. Erros são registrados com detalhes e a execução continua.
-
-### Output
-- `results.csv` e `results.json` por execução (futuramente migrável para SQLite)
-- `report.html` gerado automaticamente com tabela comparativa e ranking por combinação LLM + prompt
+Retry automático com backoff exponencial via `async_retry()`. Falhas isoladas (download, transcrição ou refinamento) nunca derrubam o pipeline — o erro é registrado e a execução continua.
 
 ---
 
 ## Credenciais
 
-Configurar no arquivo `.env` na raiz do projeto:
+**APIs de LLM** — configurar no arquivo `.env`:
 
 ```
 OPENAI_API_KEY=...
 ANTHROPIC_API_KEY=...
 GOOGLE_API_KEY=...
 ```
+
+**Google Drive** — OAuth2:
+1. Criar projeto no [Google Cloud Console](https://console.cloud.google.com)
+2. Ativar a Google Drive API
+3. Criar credencial OAuth → App para computador → baixar como `credentials.json`
+4. Na primeira execução o browser abrirá para autenticação; `token.json` é salvo automaticamente
+
+Ambos os arquivos estão no `.gitignore` e nunca devem ser commitados.
 
 ---
 
@@ -191,4 +254,3 @@ uv run ruff format src/
 ```
 
 > **Atenção:** a métrica BERTScore baixa um modelo de linguagem pesado (~1-2 GB) na primeira execução. Isso pode demorar alguns minutos dependendo da conexão. O modelo fica em cache após o primeiro download.
-
