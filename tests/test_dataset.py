@@ -1,92 +1,88 @@
+import csv
 import pytest
 
-from benchmark.dataset import load_dataset
+from benchmark.dataset import load_catalog
 
 
-GROUND_TRUTH = """\
----
-titulo: As Rosas Não Falam
-autoria: Cartola
-interpretacao: Cartola
-disco: Cartola
-ano: 1976
-genero: Samba
----
-As rosas não falam
-Apenas perfumam
-"""
+CSV_HEADER = "Música,Autoria,Interpretação,Acompanhamento,Disco,Ano,Gênero,Letra,Arquivo,URL,Fonte,Acesso"
+
+def _make_row(
+    musica="As Rosas Não Falam",
+    autoria="Cartola",
+    interpretacao="Cartola",
+    acompanhamento="Regional",
+    disco="Cartola",
+    ano="1976",
+    genero="Samba",
+    letra="As rosas não falam\nApenas perfumam",
+    arquivo="As Rosas Não Falam - Cartola.mp3",
+    url="https://drive.google.com/file/d/ABC123/view?usp=sharing",
+    fonte="",
+    acesso="",
+):
+    return {
+        "Música": musica, "Autoria": autoria, "Interpretação": interpretacao,
+        "Acompanhamento": acompanhamento, "Disco": disco, "Ano": ano, "Gênero": genero,
+        "Letra": letra, "Arquivo": arquivo, "URL": url, "Fonte": fonte, "Acesso": acesso,
+    }
 
 
-def test_load_dataset(tmp_path):
-    song_dir = tmp_path / "cartola-as-rosas-nao-falam"
-    song_dir.mkdir()
-    (song_dir / "audio.mp3").write_bytes(b"")
-    (song_dir / "ground_truth.md").write_text(GROUND_TRUTH, encoding="utf-8")
+def _write_csv(path, rows):
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=_make_row().keys())
+        writer.writeheader()
+        writer.writerows(rows)
 
-    songs = load_dataset(str(tmp_path))
+
+def test_load_catalog(tmp_path):
+    csv_path = tmp_path / "catalogo.csv"
+    _write_csv(csv_path, [_make_row()])
+
+    songs = load_catalog(csv_path)
+
     assert len(songs) == 1
+    s = songs[0]
+    assert s.titulo == "As Rosas Não Falam"
+    assert s.autoria == "Cartola"
+    assert s.interpretacao == "Cartola"
+    assert s.disco == "Cartola"
+    assert s.ano == "1976"
+    assert s.genero == "Samba"
+    assert s.ground_truth == "As rosas não falam\nApenas perfumam"
+    assert s.audio_url == "https://drive.google.com/file/d/ABC123/view?usp=sharing"
+    assert s.audio_filename == "As Rosas Não Falam - Cartola.mp3"
+
+
+def test_load_catalog_song_id_slug(tmp_path):
+    csv_path = tmp_path / "catalogo.csv"
+    _write_csv(csv_path, [_make_row(musica="As Rosas Não Falam", interpretacao="Cartola")])
+
+    songs = load_catalog(csv_path)
     assert songs[0].song_id == "cartola-as-rosas-nao-falam"
-    assert songs[0].titulo == "As Rosas Não Falam"
-    assert songs[0].autoria == "Cartola"
-    assert songs[0].interpretacao == "Cartola"
-    assert songs[0].disco == "Cartola"
-    assert songs[0].ano == "1976"
-    assert songs[0].genero == "Samba"
-    assert songs[0].ground_truth == "As rosas não falam\nApenas perfumam"
 
 
-def test_load_dataset_accepts_any_mp3_filename(tmp_path):
-    song_dir = tmp_path / "cartola-as-rosas-nao-falam"
-    song_dir.mkdir()
-    (song_dir / "cartola_rosas.mp3").write_bytes(b"")
-    (song_dir / "ground_truth.md").write_text(GROUND_TRUTH, encoding="utf-8")
+def test_load_catalog_sorted_order(tmp_path):
+    csv_path = tmp_path / "catalogo.csv"
+    _write_csv(csv_path, [
+        _make_row(musica="Folhas Secas", interpretacao="Nelson Cavaquinho"),
+        _make_row(musica="As Rosas Não Falam", interpretacao="Cartola"),
+    ])
 
-    songs = load_dataset(str(tmp_path))
-    assert len(songs) == 1
-    assert songs[0].audio_path.name == "cartola_rosas.mp3"
-
-
-def test_load_dataset_skips_no_mp3(tmp_path):
-    song_dir = tmp_path / "cartola-as-rosas-nao-falam"
-    song_dir.mkdir()
-    (song_dir / "ground_truth.md").write_text(GROUND_TRUTH, encoding="utf-8")
-
-    songs = load_dataset(str(tmp_path))
-    assert songs == []
-
-
-def test_load_dataset_skips_multiple_mp3(tmp_path):
-    song_dir = tmp_path / "cartola-as-rosas-nao-falam"
-    song_dir.mkdir()
-    (song_dir / "audio.mp3").write_bytes(b"")
-    (song_dir / "audio2.mp3").write_bytes(b"")
-    (song_dir / "ground_truth.md").write_text(GROUND_TRUTH, encoding="utf-8")
-
-    songs = load_dataset(str(tmp_path))
-    assert songs == []
-
-
-def test_load_dataset_skips_missing_ground_truth(tmp_path):
-    song_dir = tmp_path / "cartola-as-rosas-nao-falam"
-    song_dir.mkdir()
-    (song_dir / "audio.mp3").write_bytes(b"")
-
-    songs = load_dataset(str(tmp_path))
-    assert songs == []
-
-
-def test_load_dataset_raises_if_path_not_found():
-    with pytest.raises(FileNotFoundError):
-        load_dataset("caminho/inexistente")
-
-
-def test_load_dataset_sorted_order(tmp_path):
-    for name in ["nelson-cavaquinho-folhas-secas", "cartola-as-rosas-nao-falam"]:
-        d = tmp_path / name
-        d.mkdir()
-        (d / "audio.mp3").write_bytes(b"")
-        (d / "ground_truth.md").write_text(GROUND_TRUTH, encoding="utf-8")
-
-    songs = load_dataset(str(tmp_path))
+    songs = load_catalog(csv_path)
     assert songs[0].song_id == "cartola-as-rosas-nao-falam"
     assert songs[1].song_id == "nelson-cavaquinho-folhas-secas"
+
+
+def test_load_catalog_raises_if_not_found():
+    with pytest.raises(FileNotFoundError):
+        load_catalog("caminho/inexistente/catalogo.csv")
+
+
+def test_load_catalog_strips_whitespace(tmp_path):
+    csv_path = tmp_path / "catalogo.csv"
+    row = _make_row(musica="  As Rosas Não Falam  ", autoria="  Cartola  ")
+    _write_csv(csv_path, [row])
+
+    songs = load_catalog(csv_path)
+    assert songs[0].titulo == "As Rosas Não Falam"
+    assert songs[0].autoria == "Cartola"

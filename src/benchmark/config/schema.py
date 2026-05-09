@@ -24,6 +24,12 @@ class RefinementConfig(BaseModel):
     temperature: float = 0.0
 
 
+class DriveConfig(BaseModel):
+    credentials_path: str = "credentials.json"
+    token_path: str = "token.json"
+    audio_dir: str = "data/inputs"
+
+
 class ExperimentConfig(BaseModel):
     experiment_name: str
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
@@ -31,5 +37,6 @@ class ExperimentConfig(BaseModel):
     transcription: TranscriptionConfig = Field(default_factory=TranscriptionConfig)
     refinement: list[RefinementConfig] = Field(default_factory=list)
     metrics: list[str] = Field(default_factory=list)
-    dataset_path: str = "data/dataset"
+    catalog_path: str = "data/catalogo.csv"
+    drive: DriveConfig = Field(default_factory=DriveConfig)
     results_path: str = "results"

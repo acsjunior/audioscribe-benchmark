@@ -34,7 +34,11 @@ metrics:
   - wer
   - cer
   - bertscore
-dataset_path: data/dataset
+catalog_path: data/catalogo.csv
+drive:
+  credentials_path: credentials.json
+  token_path: token.json
+  audio_dir: data/inputs
 results_path: results
 """
 
@@ -59,6 +63,8 @@ def test_full_config():
     assert config.refinement[0].provider == "openai"
     assert config.refinement[1].model == "claude-opus-4-7"
     assert config.metrics == ["wer", "cer", "bertscore"]
+    assert config.catalog_path == "data/catalogo.csv"
+    assert config.drive.audio_dir == "data/inputs"
 
 
 def test_load_config_from_file(tmp_path):

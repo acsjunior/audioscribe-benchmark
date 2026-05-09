@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from benchmark.models import ExperimentResult, SongData
 
 
@@ -32,11 +30,13 @@ def test_song_data_fields():
         disco="Cartola",
         ano="1976",
         genero="Samba",
-        audio_path=Path("data/dataset/cartola-as-rosas-nao-falam/audio.mp3"),
+        audio_url="https://drive.google.com/file/d/ABC/view",
+        audio_filename="As Rosas Não Falam - Cartola.mp3",
         ground_truth="As rosas não falam",
     )
     assert song.song_id == "cartola-as-rosas-nao-falam"
     assert song.autoria == "Cartola"
+    assert song.audio_filename == "As Rosas Não Falam - Cartola.mp3"
 
 
 def test_evaluated_transcription_baseline():

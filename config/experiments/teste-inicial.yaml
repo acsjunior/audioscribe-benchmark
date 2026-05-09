@@ -1,0 +1,35 @@
+experiment_name: "teste-inicial"
+
+logging:
+  mode: normal
+  output_file: logs/teste-inicial.log
+
+retry:
+  max_attempts: 2
+  backoff_factor: 2.0
+
+transcription:
+  provider: whisper
+  model: whisper-1
+
+refinement:
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/rich_context.yaml
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/archaic_vocab.yaml
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/rich_context_v2.yaml
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/archaic_vocab_v2.yaml
+
+
+metrics:
+  - wer
+  - cer
+
+dataset_path: data/dataset
+results_path: results

@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from pathlib import Path
 
 
 @dataclass
@@ -11,7 +10,8 @@ class SongData:
     disco: str
     ano: str
     genero: str
-    audio_path: Path
+    audio_url: str
+    audio_filename: str
     ground_truth: str
 
 

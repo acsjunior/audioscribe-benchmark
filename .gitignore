@@ -1,5 +1,10 @@
 # Credenciais
 .env
+credentials.json
+token.json
+
+# Áudios baixados
+data/inputs/*.mp3
 
 # Python
 __pycache__/

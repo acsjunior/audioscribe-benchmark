@@ -15,8 +15,9 @@ def config(tmp_path) -> ExperimentConfig:
     return ExperimentConfig(
         experiment_name="teste",
         metrics=["wer"],
-        dataset_path=str(tmp_path / "dataset"),
+        catalog_path=str(tmp_path / "catalogo.csv"),
         results_path=str(tmp_path / "results"),
+        drive={"audio_dir": str(tmp_path / "inputs")},
     )
 
 
@@ -30,8 +31,9 @@ def config_with_refinement(tmp_path) -> tuple[ExperimentConfig, Path]:
     cfg = ExperimentConfig(
         experiment_name="teste",
         metrics=["wer"],
-        dataset_path=str(tmp_path / "dataset"),
+        catalog_path=str(tmp_path / "catalogo.csv"),
         results_path=str(tmp_path / "results"),
+        drive={"audio_dir": str(tmp_path / "inputs")},
         refinement=[
             RefinementConfig(provider="openai", model="gpt-4o", prompt_file=str(prompt_file))
         ],
@@ -41,6 +43,9 @@ def config_with_refinement(tmp_path) -> tuple[ExperimentConfig, Path]:
 
 @pytest.fixture
 def fake_song(tmp_path) -> SongData:
+    audio_path = tmp_path / "inputs" / "audio.mp3"
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
+    audio_path.write_bytes(b"")
     return SongData(
         song_id="cartola-as-rosas-nao-falam",
         titulo="As Rosas Não Falam",
@@ -49,18 +54,19 @@ def fake_song(tmp_path) -> SongData:
         disco="Cartola",
         ano="1976",
         genero="Samba",
-        audio_path=tmp_path / "audio.mp3",
+        audio_url="https://drive.google.com/file/d/ABC/view",
+        audio_filename="audio.mp3",
         ground_truth="As rosas não falam",
     )
 
 
-@patch("benchmark.pipeline.load_dataset")
+@patch("benchmark.pipeline.load_catalog")
 @patch("benchmark.pipeline.WhisperTranscriber")
-async def test_pipeline_baseline_only(mock_transcriber_cls, mock_load_dataset, config, fake_song):
+async def test_pipeline_baseline_only(mock_transcriber_cls, mock_load_catalog, config, fake_song):
     mock_transcriber = MagicMock()
     mock_transcriber.transcribe = AsyncMock(return_value="as rosas nao falam")
     mock_transcriber_cls.return_value = mock_transcriber
-    mock_load_dataset.return_value = [fake_song]
+    mock_load_catalog.return_value = [fake_song]
 
     pipeline = Pipeline(config)
     run_dir = await pipeline.run()
@@ -70,11 +76,11 @@ async def test_pipeline_baseline_only(mock_transcriber_cls, mock_load_dataset, c
     assert (run_dir / "report.html").exists()
 
 
-@patch("benchmark.pipeline.load_dataset")
+@patch("benchmark.pipeline.load_catalog")
 @patch("benchmark.pipeline.WhisperTranscriber")
 @patch("benchmark.pipeline.get_refiner")
 async def test_pipeline_with_refinement(
-    mock_get_refiner, mock_transcriber_cls, mock_load_dataset, config_with_refinement, fake_song
+    mock_get_refiner, mock_transcriber_cls, mock_load_catalog, config_with_refinement, fake_song
 ):
     config, _ = config_with_refinement
 
@@ -89,7 +95,7 @@ async def test_pipeline_with_refinement(
         )
     )
     mock_get_refiner.return_value = mock_refiner
-    mock_load_dataset.return_value = [fake_song]
+    mock_load_catalog.return_value = [fake_song]
 
     pipeline = Pipeline(config)
     run_dir = await pipeline.run()
@@ -98,15 +104,15 @@ async def test_pipeline_with_refinement(
     assert mock_refiner.refine.call_count == 1
 
 
-@patch("benchmark.pipeline.load_dataset")
+@patch("benchmark.pipeline.load_catalog")
 @patch("benchmark.pipeline.WhisperTranscriber")
 async def test_pipeline_skips_song_on_transcription_failure(
-    mock_transcriber_cls, mock_load_dataset, config, fake_song
+    mock_transcriber_cls, mock_load_catalog, config, fake_song
 ):
     mock_transcriber = MagicMock()
     mock_transcriber.transcribe = AsyncMock(side_effect=RuntimeError("API error"))
     mock_transcriber_cls.return_value = mock_transcriber
-    mock_load_dataset.return_value = [fake_song]
+    mock_load_catalog.return_value = [fake_song]
 
     pipeline = Pipeline(config)
     run_dir = await pipeline.run()
@@ -114,11 +120,11 @@ async def test_pipeline_skips_song_on_transcription_failure(
     assert not (run_dir / "results.csv").exists()
 
 
-@patch("benchmark.pipeline.load_dataset")
+@patch("benchmark.pipeline.load_catalog")
 @patch("benchmark.pipeline.WhisperTranscriber")
 @patch("benchmark.pipeline.get_refiner")
 async def test_pipeline_records_error_on_refinement_failure(
-    mock_get_refiner, mock_transcriber_cls, mock_load_dataset, config_with_refinement, fake_song
+    mock_get_refiner, mock_transcriber_cls, mock_load_catalog, config_with_refinement, fake_song
 ):
     config, _ = config_with_refinement
 
@@ -129,7 +135,7 @@ async def test_pipeline_records_error_on_refinement_failure(
     mock_refiner = MagicMock()
     mock_refiner.refine = AsyncMock(side_effect=RuntimeError("LLM error"))
     mock_get_refiner.return_value = mock_refiner
-    mock_load_dataset.return_value = [fake_song]
+    mock_load_catalog.return_value = [fake_song]
 
     pipeline = Pipeline(config)
     run_dir = await pipeline.run()
@@ -139,3 +145,66 @@ async def test_pipeline_records_error_on_refinement_failure(
     error_rows = [r for r in rows if r["error"]]
     assert len(error_rows) == 1
     assert "LLM error" in error_rows[0]["error"]
+
+
+@patch("benchmark.pipeline.download_audio")
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_pipeline_downloads_missing_audio(
+    mock_transcriber_cls, mock_load_catalog, mock_download, config, tmp_path
+):
+    song = SongData(
+        song_id="cartola-as-rosas-nao-falam",
+        titulo="As Rosas Não Falam",
+        autoria="Cartola",
+        interpretacao="Cartola",
+        disco="Cartola",
+        ano="1976",
+        genero="Samba",
+        audio_url="https://drive.google.com/file/d/ABC/view",
+        audio_filename="audio.mp3",
+        ground_truth="As rosas não falam",
+    )
+    mock_load_catalog.return_value = [song]
+
+    mock_transcriber = MagicMock()
+    mock_transcriber.transcribe = AsyncMock(return_value="as rosas nao falam")
+    mock_transcriber_cls.return_value = mock_transcriber
+
+    fake_service = MagicMock()
+    pipeline = Pipeline(config, drive_service=fake_service)
+
+    def create_audio_file(service, url, dest_path):
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        dest_path.write_bytes(b"")
+
+    mock_download.side_effect = create_audio_file
+    await pipeline.run()
+
+    mock_download.assert_called_once()
+
+
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_pipeline_skips_song_when_no_audio_and_no_drive(
+    mock_transcriber_cls, mock_load_catalog, config, tmp_path
+):
+    song = SongData(
+        song_id="cartola-as-rosas-nao-falam",
+        titulo="As Rosas Não Falam",
+        autoria="Cartola",
+        interpretacao="Cartola",
+        disco="Cartola",
+        ano="1976",
+        genero="Samba",
+        audio_url="https://drive.google.com/file/d/ABC/view",
+        audio_filename="nao-existe.mp3",
+        ground_truth="As rosas não falam",
+    )
+    mock_load_catalog.return_value = [song]
+    mock_transcriber_cls.return_value = MagicMock()
+
+    pipeline = Pipeline(config, drive_service=None)
+    run_dir = await pipeline.run()
+
+    assert not (run_dir / "results.csv").exists()

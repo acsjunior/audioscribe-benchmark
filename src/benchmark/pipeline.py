@@ -4,7 +4,8 @@ from datetime import datetime
 from pathlib import Path
 
 from .config.schema import ExperimentConfig
-from .dataset import load_dataset
+from .dataset import load_catalog
+from .gdrive import download_audio
 from .metrics import get_metrics
 from .models import ExperimentResult
 from .refinement import get_refiner, load_prompt
@@ -19,8 +20,9 @@ logger = logging.getLogger("benchmark")
 
 
 class Pipeline:
-    def __init__(self, config: ExperimentConfig) -> None:
+    def __init__(self, config: ExperimentConfig, drive_service=None) -> None:
         self.config = config
+        self.drive_service = drive_service
         self.transcriber = WhisperTranscriber(
             model=config.transcription.model,
             prompt=config.transcription.transcription_prompt,
@@ -51,13 +53,19 @@ class Pipeline:
             refiners.append((ref_config, refiner, prompt))
         return refiners
 
+    def _resolve_audio_path(self, audio_filename: str) -> Path:
+        return Path(self.config.drive.audio_dir) / audio_filename
+
     async def run(self) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_dir = Path(self.config.results_path) / f"{self.config.experiment_name}_{timestamp}"
         run_dir.mkdir(parents=True, exist_ok=True)
 
-        songs = load_dataset(self.config.dataset_path)
-        logger.info(f"Dataset carregado: {len(songs)} música(s)")
+        songs = load_catalog(self.config.catalog_path)
+        logger.info(f"Catálogo carregado: {len(songs)} música(s)")
+
+        audio_dir = Path(self.config.drive.audio_dir)
+        audio_dir.mkdir(parents=True, exist_ok=True)
 
         transcribe_fn = self._with_retry(self.transcriber.transcribe)
         refiners = self._prepare_refiners()
@@ -67,8 +75,22 @@ class Pipeline:
         for i, song in enumerate(songs, 1):
             logger.info(f"[{i}/{len(songs)}] {song.interpretacao} — {song.titulo}")
 
+            audio_path = self._resolve_audio_path(song.audio_filename)
+            if not audio_path.exists():
+                if self.drive_service is None:
+                    logger.error(f"  Arquivo não encontrado e Google Drive não configurado: {audio_path}")
+                    continue
+                try:
+                    download_audio(self.drive_service, song.audio_url, audio_path)
+                    logger.info("  Download concluído")
+                except Exception as e:
+                    logger.error(f"  Download falhou: {e}")
+                    continue
+            else:
+                logger.debug(f"  Usando cache: {audio_path.name}")
+
             try:
-                transcription = await transcribe_fn(song.audio_path)
+                transcription = await transcribe_fn(audio_path)
                 logger.info("  Transcrição concluída")
             except Exception as e:
                 logger.error(f"  Transcrição falhou após {self.config.retry.max_attempts} tentativa(s): {e}")

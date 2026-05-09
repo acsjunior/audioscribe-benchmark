@@ -19,6 +19,11 @@ user: |
   a qualidade do áudio pode tornar essas distinções fonéticas indistinguíveis ao
   transcritor automático.
 
+  Desconfie de qualquer palavra ou expressão que não seria usada no Brasil urbano
+  das décadas de 1920 a 1950 — anglicismos modernos, gírias contemporâneas ou
+  termos técnicos atuais são quase sempre erros de transcrição. Nesse caso,
+  identifique a palavra da época que soa foneticamente similar.  
+
   Retorne somente a letra corrigida, sem comentários.
 
   {transcription}
