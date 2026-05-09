@@ -3,7 +3,7 @@ import time
 
 from anthropic import AsyncAnthropic
 
-from .base import BaseRefiner, PromptConfig, RefinementResult
+from .base import BaseRefiner, PromptConfig, RefinementResult, TruncatedResponseError
 
 logger = logging.getLogger("benchmark")
 
@@ -33,6 +33,11 @@ class AnthropicRefiner(BaseRefiner):
             temperature=self.temperature,
         )
         elapsed = (time.monotonic() - start) * 1000
+
+        if response.stop_reason == "max_tokens":
+            raise TruncatedResponseError(
+                f"Anthropic {self.model} truncou a resposta (stop_reason=max_tokens)"
+            )
 
         tokens = response.usage.input_tokens + response.usage.output_tokens
         logger.debug(f"Anthropic {self.model} — tokens: {tokens}, time: {elapsed:.0f}ms")

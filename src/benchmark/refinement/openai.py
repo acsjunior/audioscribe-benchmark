@@ -3,7 +3,7 @@ import time
 
 from openai import AsyncOpenAI
 
-from .base import BaseRefiner, PromptConfig, RefinementResult
+from .base import BaseRefiner, PromptConfig, RefinementResult, TruncatedResponseError
 
 logger = logging.getLogger("benchmark")
 
@@ -29,12 +29,19 @@ class OpenAIRefiner(BaseRefiner):
             model=self.model,
             messages=[{"role": "system", "content": prompt.system}] + messages,
             temperature=self.temperature,
+            max_tokens=4096,
         )
         elapsed = (time.monotonic() - start) * 1000
 
+        choice = response.choices[0]
+        if choice.finish_reason == "length":
+            raise TruncatedResponseError(
+                f"OpenAI {self.model} truncou a resposta (finish_reason=length)"
+            )
+
         logger.debug(f"OpenAI {self.model} — tokens: {response.usage.total_tokens}, time: {elapsed:.0f}ms")
         return RefinementResult(
-            refined_text=response.choices[0].message.content.strip(),
+            refined_text=choice.message.content.strip(),
             tokens_used=response.usage.total_tokens,
             response_time_ms=elapsed,
         )

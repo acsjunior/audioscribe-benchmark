@@ -6,7 +6,7 @@ import time
 from google import genai
 from google.genai import types
 
-from .base import BaseRefiner, PromptConfig, RefinementResult
+from .base import BaseRefiner, PromptConfig, RefinementResult, TruncatedResponseError
 
 logger = logging.getLogger("benchmark")
 
@@ -39,6 +39,15 @@ class GoogleRefiner(BaseRefiner):
             ),
         )
         elapsed = (time.monotonic() - start) * 1000
+
+        if (
+            response.candidates
+            and response.candidates[0].finish_reason is not None
+            and response.candidates[0].finish_reason.name == "MAX_TOKENS"
+        ):
+            raise TruncatedResponseError(
+                f"Google {self.model} truncou a resposta (finish_reason=MAX_TOKENS)"
+            )
 
         tokens = None
         if response.usage_metadata:

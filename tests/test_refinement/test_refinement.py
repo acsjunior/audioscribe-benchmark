@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from benchmark.refinement import get_refiner
 from benchmark.refinement.anthropic import AnthropicRefiner
-from benchmark.refinement.base import PromptConfig, load_prompt
+from benchmark.refinement.base import PromptConfig, TruncatedResponseError, load_prompt
 from benchmark.refinement.google import GoogleRefiner
 from benchmark.refinement.openai import OpenAIRefiner
 
@@ -58,6 +58,7 @@ async def test_openai_refiner(mock_cls, prompt):
     call_kwargs = mock_client.chat.completions.create.call_args.kwargs
     assert call_kwargs["model"] == "gpt-4o"
     assert call_kwargs["temperature"] == 0.0
+    assert call_kwargs["max_tokens"] == 4096
 
 
 @patch("benchmark.refinement.openai.AsyncOpenAI")
@@ -162,3 +163,54 @@ def test_get_refiner_openai_custom_temperature():
 def test_get_refiner_unknown_raises():
     with pytest.raises(ValueError, match="Unknown provider"):
         get_refiner("desconhecido", "modelo")
+
+
+# --- Truncamento ---
+
+@patch("benchmark.refinement.openai.AsyncOpenAI")
+async def test_openai_raises_on_truncation(mock_cls, prompt):
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock(finish_reason="length", message=MagicMock(content="parcial"))]
+    mock_response.usage = MagicMock(total_tokens=80)
+    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+    mock_cls.return_value = mock_client
+
+    refiner = OpenAIRefiner(model="gpt-4o")
+    with pytest.raises(TruncatedResponseError):
+        await refiner.refine("texto", prompt)
+
+
+@patch("benchmark.refinement.anthropic.AsyncAnthropic")
+async def test_anthropic_raises_on_truncation(mock_cls, prompt):
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.stop_reason = "max_tokens"
+    mock_response.content = [MagicMock(text="parcial")]
+    mock_response.usage = MagicMock(input_tokens=40, output_tokens=10)
+    mock_client.messages.create = AsyncMock(return_value=mock_response)
+    mock_cls.return_value = mock_client
+
+    refiner = AnthropicRefiner(model="claude-opus-4-7")
+    with pytest.raises(TruncatedResponseError):
+        await refiner.refine("texto", prompt)
+
+
+@patch("benchmark.refinement.google.genai.Client")
+async def test_google_raises_on_truncation(mock_client_cls, mocker, prompt):
+    mock_client_cls.return_value = MagicMock()
+    refiner = GoogleRefiner(model="gemini-2.0-flash")
+
+    truncated_finish = MagicMock()
+    truncated_finish.name = "MAX_TOKENS"
+    mock_candidate = MagicMock(finish_reason=truncated_finish)
+    mock_response = MagicMock(candidates=[mock_candidate])
+    mock_response.usage_metadata = None
+
+    mocker.patch.object(
+        refiner.client.models,
+        "generate_content",
+        return_value=mock_response,
+    )
+    with pytest.raises(TruncatedResponseError):
+        await refiner.refine("texto", prompt)

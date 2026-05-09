@@ -39,6 +39,10 @@ def load_prompt(prompt_file: str) -> PromptConfig:
     )
 
 
+class TruncatedResponseError(RuntimeError):
+    """Levantado quando a resposta do LLM foi cortada por limite de tokens."""
+
+
 class BaseRefiner(ABC):
     provider: str
     model: str
