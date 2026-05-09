@@ -4,7 +4,25 @@ system: |
   Você é um especialista em transcrição de letras de samba antigo brasileiro.
   Corrija transcrições automáticas preservando o estilo e vocabulário originais.
 user: |
+  Música: {titulo}
+  Autoria: {autoria}
+  Intérprete: {interpretacao}
+  Ano: {ano}
+
   Corrija a transcrição abaixo seguindo o mesmo padrão dos exemplos anteriores.
+
+  Use a coerência narrativa da letra como critério de correção: o sentido geral
+  da música deve guiar suas escolhas quando uma palavra for ambígua. Preste
+  atenção especial a verbos que podem ter sido confundidos entre tempos e modos
+  verbais (ex: "cantava" vs "cantara", "fosse" vs "foi", "venha" vs "veio") —
+  a qualidade do áudio pode tornar essas distinções fonéticas indistinguíveis ao
+  transcritor automático.
+
+  Desconfie de qualquer palavra ou expressão que não seria usada no Brasil urbano
+  das décadas de 1920 a 1950 — anglicismos modernos, gírias contemporâneas ou
+  termos técnicos atuais são quase sempre erros de transcrição. Nesse caso,
+  identifique a palavra da época que soa foneticamente similar.
+
   Retorne somente a letra corrigida, sem comentários.
 
   {transcription}

@@ -1,3 +1,4 @@
+import collections
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,8 +15,11 @@ class PromptConfig:
     file: str
     examples: list[dict] | None = None
 
-    def format_user(self, transcription: str) -> str:
-        return self.user.format(transcription=transcription)
+    def format_user(self, transcription: str, metadata: dict | None = None) -> str:
+        kwargs: dict = {"transcription": transcription}
+        if metadata:
+            kwargs.update(metadata)
+        return self.user.format_map(collections.defaultdict(str, kwargs))
 
 
 @dataclass
@@ -48,4 +52,6 @@ class BaseRefiner(ABC):
     model: str
 
     @abstractmethod
-    async def refine(self, transcription: str, prompt: PromptConfig) -> RefinementResult: ...
+    async def refine(
+        self, transcription: str, prompt: PromptConfig, metadata: dict | None = None
+    ) -> RefinementResult: ...

@@ -16,13 +16,15 @@ class OpenAIRefiner(BaseRefiner):
         self.temperature = temperature
         self.client = AsyncOpenAI()
 
-    async def refine(self, transcription: str, prompt: PromptConfig) -> RefinementResult:
+    async def refine(
+        self, transcription: str, prompt: PromptConfig, metadata: dict | None = None
+    ) -> RefinementResult:
         messages = []
         if prompt.examples:
             for ex in prompt.examples:
                 messages.append({"role": "user", "content": ex["input"]})
                 messages.append({"role": "assistant", "content": ex["output"]})
-        messages.append({"role": "user", "content": prompt.format_user(transcription)})
+        messages.append({"role": "user", "content": prompt.format_user(transcription, metadata)})
 
         start = time.monotonic()
         response = await self.client.chat.completions.create(

@@ -114,6 +114,13 @@ class Pipeline:
                 metrics=self._compute_metrics(transcription, song.ground_truth),
             ))
 
+            song_metadata = {
+                "titulo": song.titulo,
+                "autoria": song.autoria,
+                "interpretacao": song.interpretacao,
+                "ano": song.ano,
+            }
+
             for j, (ref_config, refiner, prompt) in enumerate(refiners, 1):
                 logger.info(
                     f"  [{j}/{len(refiners)}] "
@@ -121,7 +128,7 @@ class Pipeline:
                 )
                 try:
                     refine_fn = self._with_retry(refiner.refine)
-                    ref_result = await refine_fn(transcription, prompt)
+                    ref_result = await refine_fn(transcription, prompt, song_metadata)
 
                     time_str = f"{ref_result.response_time_ms:.0f}ms" if ref_result.response_time_ms else "N/A"
                     logger.info(f"    OK — tokens: {ref_result.tokens_used}, tempo: {time_str}")

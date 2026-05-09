@@ -21,10 +21,10 @@ refinement:
     prompt_file: prompts/archaic_vocab.yaml
   - provider: openai
     model: gpt-4o
-    prompt_file: prompts/rich_context_v2.yaml
+    prompt_file: prompts/minimalist.yaml
   - provider: openai
     model: gpt-4o
-    prompt_file: prompts/archaic_vocab_v2.yaml
+    prompt_file: prompts/few_shot.yaml
 
 
 metrics:

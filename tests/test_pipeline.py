@@ -106,6 +106,36 @@ async def test_pipeline_with_refinement(
 
 @patch("benchmark.pipeline.load_catalog")
 @patch("benchmark.pipeline.WhisperTranscriber")
+@patch("benchmark.pipeline.get_refiner")
+async def test_pipeline_passes_metadata_to_refiner(
+    mock_get_refiner, mock_transcriber_cls, mock_load_catalog, config_with_refinement, fake_song
+):
+    config, _ = config_with_refinement
+
+    mock_transcriber = MagicMock()
+    mock_transcriber.transcribe = AsyncMock(return_value="as rosas nao falam")
+    mock_transcriber_cls.return_value = mock_transcriber
+
+    mock_refiner = MagicMock()
+    mock_refiner.refine = AsyncMock(
+        return_value=RefinementResult(refined_text="As rosas não falam", tokens_used=50)
+    )
+    mock_get_refiner.return_value = mock_refiner
+    mock_load_catalog.return_value = [fake_song]
+
+    pipeline = Pipeline(config)
+    await pipeline.run()
+
+    _, call_kwargs = mock_refiner.refine.call_args
+    metadata = call_kwargs.get("metadata") or mock_refiner.refine.call_args.args[2]
+    assert metadata["titulo"] == fake_song.titulo
+    assert metadata["autoria"] == fake_song.autoria
+    assert metadata["interpretacao"] == fake_song.interpretacao
+    assert metadata["ano"] == fake_song.ano
+
+
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
 async def test_pipeline_skips_song_on_transcription_failure(
     mock_transcriber_cls, mock_load_catalog, config, fake_song
 ):
