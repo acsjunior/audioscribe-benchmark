@@ -1,0 +1,41 @@
+experiment_name: "noisereduce-01"
+
+logging:
+  mode: normal
+  output_file: logs/noisereduce-01.log
+
+retry:
+  max_attempts: 3
+  backoff_factor: 2.0
+
+transcription:
+  provider: whisper
+  model: whisper-1
+  audio_preprocessing: noisereduce
+
+refinement:
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/rich_context.yaml
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/archaic_vocab.yaml
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/minimalist.yaml
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/few_shot.yaml
+
+metrics:
+  - wer
+  - cer
+
+catalog_path: data/catalogo.csv
+
+drive:
+  credentials_path: credentials.json
+  token_path: token.json
+  audio_dir: data/inputs
+
+results_path: results

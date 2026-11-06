@@ -1,0 +1,48 @@
+experiment_name: "gpt4o-transcribe-02"
+
+logging:
+  mode: normal
+  output_file: logs/gpt4o-transcribe-02.log
+
+retry:
+  max_attempts: 3
+  backoff_factor: 2.0
+
+transcription:
+  provider: whisper
+  model: gpt-4o-transcribe
+  transcription_prompt: >
+    Samba brasileiro, gravação de 78 rpm, 1928–1955.
+    Intérpretes: Francisco Alves, Mário Reis, Orlando Silva, Carlos Galhardo,
+    Ataulfo Alves, Ciro Monteiro, Cartola, Aurora Miranda, Odete Amaral,
+    Alcides Gerardi, Gilberto Alves, Hélio Sindô, Leonel Faria, Jonjoca,
+    Arnaldo Amaral, Déo, Nelson Gonçalves, Roberto Silva, Dilermando Pinheiro,
+    Geraldo Pereira, Zé, Zilda.
+    Vocabulário específico: muamba, viração, almofadinha, cuíca, tamborim,
+    batedor, malandragem, cabrocha, xadrez, morro, batente, tostão, níquel,
+    embrulho, tábua de salvação, corda bamba, porta-bandeira, porta-estandarte,
+    escola de samba.
+    Nomes nas letras: Antonico, Nestor, Dolores, Paulo da Portela, Maria da Penha,
+    Sebastiana, Cosme.
+    Contrações: num, pra, pro, rô, vortô, xô.
+
+refinement:
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/targeted_domain.yaml
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/conservative.yaml
+
+metrics:
+  - wer
+  - cer
+
+catalog_path: data/catalogo.csv
+
+drive:
+  credentials_path: credentials.json
+  token_path: token.json
+  audio_dir: data/inputs
+
+results_path: results

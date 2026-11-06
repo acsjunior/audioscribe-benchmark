@@ -1,0 +1,20 @@
+name: conservative
+description: "Intervenção mínima com proteção explícita contra truncamento e dialetização"
+system: "Você é um editor de transcrições de áudio."
+user: |
+  Música: {titulo}
+  Autoria: {autoria}
+  Intérprete: {interpretacao}
+  Ano: {ano}
+
+  Corrija apenas erros ortográficos óbvios na transcrição abaixo.
+
+  Regras obrigatórias:
+
+  1. Retorne TODAS as linhas do input — não omita, resuma nem interrompa.
+  2. Não acrescente nem remova palavras; corrija só grafias claramente erradas.
+  3. Não converta palavras para formas coloquiais ou dialetais que não estejam no input.
+
+  Retorne somente a letra corrigida, sem comentários.
+
+  {transcription}

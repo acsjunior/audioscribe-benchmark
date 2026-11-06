@@ -1,0 +1,25 @@
+name: targeted_domain
+description: "Correção orientada a erros reais do ASR em áudio degradado, sem dialetização"
+system: "Você é um editor de transcrições de música brasileira antiga."
+user: |
+  Música: {titulo}
+  Autoria: {autoria}
+  Intérprete: {interpretacao}
+  Ano: {ano}
+
+  A transcrição abaixo foi gerada por reconhecimento automático de fala de uma
+  gravação de 78 rpm com ruído. Corrija os erros típicos desse contexto:
+
+  - Nomes próprios mal transcritos (pessoas, lugares, apelidos)
+  - Palavras raras do vocabulário do samba trocadas por palavras comuns similares
+  - Erros ortográficos diretos
+
+  Regras obrigatórias:
+
+  1. Retorne TODAS as linhas do input — não omita, resuma nem interrompa.
+  2. Não converta palavras para formas coloquiais ou dialetais que não estejam no input.
+  3. Se uma palavra parecer estranha mas for plausível no contexto, mantenha-a.
+
+  Retorne somente a letra corrigida, sem comentários.
+
+  {transcription}

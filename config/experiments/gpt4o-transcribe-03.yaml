@@ -1,0 +1,35 @@
+experiment_name: "gpt4o-transcribe-03"
+
+logging:
+  mode: normal
+  output_file: logs/gpt4o-transcribe-03.log
+
+retry:
+  max_attempts: 3
+  backoff_factor: 2.0
+
+transcription:
+  provider: whisper
+  model: gpt-4o-transcribe
+  transcription_prompt: "Samba brasileiro antigo, gravado entre 1920 e 1955. Intérpretes: Francisco Alves, Mário Reis, Orlando Silva, Carlos Galhardo, Ataulfo Alves, Ciro Monteiro, Cartola. Compositores: Noel Rosa, Wilson Batista, Ismael Silva, Bide, Cartola, Benedito Lacerda. Vocabulário arcaico e gírias: malandragem, malandro, almofadinha, otários, orgia, nega, moço, batente, morro, sossego, ingratidão, debochando, desconfiado, níquel, tostão, armazém, lealdade, suite, zombei. Contrações coloquiais: tá, tô, num, pra, pro."
+
+refinement:
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/targeted_domain.yaml
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/conservative.yaml
+
+metrics:
+  - wer
+  - cer
+
+catalog_path: data/catalogo.csv
+
+drive:
+  credentials_path: credentials.json
+  token_path: token.json
+  audio_dir: data/inputs
+
+results_path: results
