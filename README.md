@@ -1,62 +1,53 @@
 # AudioScribe Benchmark
 
-Benchmark para descobrir a melhor forma de transcrever automaticamente letras de
-**sambas antigos brasileiros (1920–1955)**.
+Ferramenta para comparar estratégias de transcrição automática de letras de
+música a partir de áudio.
 
-É um caso difícil para reconhecimento de fala: gravações de 78 rpm com chiado e
-saturação, vocabulário e gírias da época ("almofadinha", "batente", "níquel"),
-contrações coloquiais e pronúncia característica do período.
+## O que é
+
+O AudioScribe Benchmark é um pipeline que transcreve um conjunto de músicas com
+diferentes combinações de modelo de transcrição, pré-processamento de áudio e
+revisão por LLM, e mede a qualidade de cada resultado comparando com a letra
+correta. O objetivo é responder, com números, qual combinação produz as melhores
+transcrições para um determinado acervo.
+
+O projeto foi construído para um acervo de sambas brasileiros antigos, mas
+funciona com qualquer conjunto de músicas que tenha áudio e letra de referência.
+
+## Para que serve
+
+- Comparar modelos de transcrição de áudio entre si
+- Avaliar se tratar o áudio antes (isolar a voz, reduzir ruído) melhora o resultado
+- Avaliar se revisar a transcrição com um LLM melhora o resultado, e com qual
+  provedor e prompt
+- Testar novas estratégias de prompt de forma reproduzível e rastreável
 
 ## Como funciona
 
-Para cada música do catálogo (`data/catalogo.csv`, com a letra validada de cada uma):
+Para cada música do catálogo, o pipeline:
 
-1. Baixa o áudio do Google Drive (com cache local)
-2. Opcionalmente pré-processa o áudio — isolamento de voz (demucs) ou redução de
-   ruído (noisereduce, DeepFilterNet)
-3. Transcreve com a API da OpenAI (`whisper-1`, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`)
-4. Opcionalmente refina a transcrição com um LLM (OpenAI, Anthropic ou Google),
-   usando diferentes estratégias de prompt
-5. Compara cada resultado com a letra validada (WER, CER, BERTScore) e gera um
-   relatório HTML com o ranking das combinações
+1. **Obtém o áudio**: baixa o MP3 do Google Drive (ou usa a cópia local, se já existir)
+2. **Pré-processa** (opcional): isola a voz ou reduz o ruído do áudio
+3. **Transcreve**: envia o áudio para um modelo de transcrição da OpenAI
+4. **Refina** (opcional): pede a um ou mais LLMs que revisem a transcrição,
+   cada um com o prompt configurado
+5. **Avalia**: compara cada versão com a letra de referência usando métricas de
+   acurácia
+6. **Reporta**: salva os resultados em CSV, JSON e um relatório HTML com ranking
 
-Cada combinação é configurada em um YAML em `config/experiments/`, e toda
-execução inclui um **baseline** — a transcrição bruta, sem refinamento — para
-medir o ganho real de cada estratégia.
+Toda execução inclui também um **baseline** (a transcrição sem nenhum
+refinamento), para medir o ganho ou a perda de cada estratégia.
 
-## Resultados até agora
+### Componentes disponíveis
 
-28 músicas, métrica WER (proporção de palavras erradas — menor é melhor):
+| Etapa | Opções |
+|---|---|
+| Transcrição | `whisper-1`, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe` |
+| Pré-processamento | `demucs` (isolamento de voz), `noisereduce`, `deepfilternet` (redução de ruído) |
+| Refinamento | OpenAI (GPT), Anthropic (Claude), Google (Gemini) |
+| Métricas | WER e CER (taxa de erro por palavra e caractere), BERTScore (similaridade semântica) |
 
-| Abordagem | WER sem refinamento | Efeito do refinamento com LLM |
-|---|---|---|
-| `whisper-1` | ~0,27 | piora (melhor caso: 0,28) |
-| **`gpt-4o-transcribe`** | **~0,17–0,21** | no máximo empata (prompt `conservative`) |
-| `gpt-4o-transcribe` + demucs | 0,17 | piora |
-| `whisper-1` + demucs | 0,36 | melhora levemente (0,35) |
-| `whisper-1` + noisereduce | 0,61 | melhora levemente (0,59) |
-| `whisper-1` + DeepFilterNet¹ | 0,69 | melhora levemente (0,66) |
-
-¹ 25 músicas.
-
-Conclusões:
-
-- **O modelo de transcrição é o que mais importa.** `gpt-4o-transcribe` reduziu o
-  erro de ~27% para ~17% das palavras.
-- **Refinar com LLM não ajuda.** Os modelos tendem a reescrever ou "modernizar" a
-  letra; o prompt mais contido (`conservative`) só consegue empatar com o baseline.
-  O refinamento só melhora um pouco quando a transcrição de partida é muito ruim.
-- **Limpar o áudio não ajuda.** Com `whisper-1`, todas as técnicas pioraram o
-  resultado (noisereduce e DeepFilterNet de forma severa); com `gpt-4o-transcribe`,
-  o demucs ficou neutro. As ferramentas são treinadas em áudio moderno e introduzem
-  artefatos em gravações antigas.
-- **Há variação entre execuções.** O baseline do `gpt-4o-transcribe` oscilou entre
-  0,17 e 0,20 com a mesma configuração; diferenças pequenas podem ser ruído.
-
-Até o momento, a melhor receita é a mais simples: `gpt-4o-transcribe` direto no
-áudio original, sem pré-processamento e sem refinamento.
-
-## Início rápido
+## Instalação
 
 Requisitos: Python 3.11+ e [uv](https://docs.astral.sh/uv/).
 
@@ -64,30 +55,111 @@ Requisitos: Python 3.11+ e [uv](https://docs.astral.sh/uv/).
 git clone https://github.com/acsjunior/audioscribe-benchmark.git
 cd audioscribe-benchmark
 uv sync --group dev
-cp .env.example .env   # preencha as chaves de API (OpenAI, e opcionalmente Anthropic/Google)
 ```
 
-Coloque o `credentials.json` (OAuth2 do Google Drive) na raiz do projeto e rode:
+## Configuração
+
+### 1. Chaves de API
+
+```bash
+cp .env.example .env
+```
+
+Preencha no `.env` as chaves dos provedores que for usar. A da OpenAI é
+obrigatória, porque é usada na transcrição; as demais só se você usar esses
+provedores no refinamento.
+
+```
+OPENAI_API_KEY=...
+ANTHROPIC_API_KEY=...
+GOOGLE_API_KEY=...
+```
+
+### 2. Acesso ao Google Drive
+
+Os áudios são baixados de uma pasta do Google Drive via OAuth2. Gere um
+`credentials.json` (tipo "App para computador") no Google Cloud Console, com a
+Google Drive API ativada, e coloque na raiz do projeto. Na primeira execução o
+navegador abre para autorizar o acesso, e o token fica salvo em `token.json`.
+
+O passo a passo detalhado está no [MANUAL.md](MANUAL.md#32-google-drive--oauth2).
+
+> Se os MP3s já estiverem em `data/inputs/` com o nome indicado no catálogo, o
+> Google Drive não é necessário.
+
+### 3. Catálogo de músicas
+
+O arquivo `data/catalogo.csv` lista as músicas a avaliar. Cada linha traz os
+metadados da música (título, autoria, intérprete, ano), a **letra de referência**
+usada na avaliação, o nome do arquivo de áudio e o link do Google Drive.
+
+### 4. Experimento
+
+Cada experimento é um arquivo YAML em `config/experiments/` que define quais
+combinações testar:
+
+```yaml
+experiment_name: "meu-experimento"
+
+transcription:
+  provider: whisper
+  model: gpt-4o-transcribe
+  # audio_preprocessing: demucs   # opcional: demucs | noisereduce | deepfilternet
+
+refinement:                       # uma entrada por combinação LLM + prompt
+  - provider: openai
+    model: gpt-4o
+    prompt_file: prompts/conservative.yaml
+  - provider: anthropic
+    model: claude-sonnet-4-6
+    prompt_file: prompts/rich_context.yaml
+
+metrics: [wer, cer]
+
+catalog_path: data/catalogo.csv
+drive:
+  audio_dir: data/inputs
+```
+
+Use `config/experiments/example.yaml` como ponto de partida.
+
+### 5. Prompts
+
+As instruções de revisão enviadas aos LLMs ficam em arquivos YAML em `prompts/`
+e podem usar os metadados da música (`{titulo}`, `{autoria}`,
+`{interpretacao}`, `{ano}`) e a transcrição (`{transcription}`). Para testar uma
+nova estratégia, basta criar um arquivo novo e referenciá-lo no experimento.
+
+## Uso
 
 ```bash
 uv run python -m benchmark run --config config/experiments/example.yaml
 ```
 
-Os resultados ficam em `results/{experimento}_{timestamp}/` (`results.csv`,
-`results.json` e `report.html`).
+Os resultados ficam em `results/{experimento}_{timestamp}/`:
 
-O **[MANUAL.md](MANUAL.md)** tem o passo a passo completo: credenciais do Google
-Drive, formato do catálogo, todas as opções de configuração, prompts disponíveis
-e interpretação dos resultados.
+| Arquivo | Conteúdo |
+|---|---|
+| `report.html` | Relatório visual com ranking das combinações e métricas por música |
+| `results.csv` | Uma linha por música × combinação, com métricas, tokens e tempo |
+| `results.json` | Os mesmos dados em JSON |
+
+Os logs da execução ficam em `logs/`.
+
+## Documentação
+
+- **[MANUAL.md](MANUAL.md)**: guia completo de uso, com todas as opções de
+  configuração, formato do catálogo, criação de prompts, leitura dos resultados
+  e solução de problemas
+- **[CLAUDE.md](CLAUDE.md)**: arquitetura e decisões técnicas do código
 
 ## Desenvolvimento
 
 ```bash
-uv run pytest
-uv run ruff check src/
-uv run ruff format src/
+uv run pytest           # testes
+uv run ruff check src/  # lint
+uv run ruff format src/ # formatação
 ```
 
-Stack: Python 3.11, uv, pytest, ruff, Pydantic, asyncio. Provedores de LLM e
-métricas são plugáveis via registry — veja [CLAUDE.md](CLAUDE.md) para a
-arquitetura.
+Provedores de LLM e métricas são plugáveis: para adicionar um novo, implemente a
+classe base correspondente e registre-a no registry do módulo.
