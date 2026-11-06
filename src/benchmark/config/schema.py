@@ -17,7 +17,7 @@ class TranscriptionConfig(BaseModel):
     provider: str = "whisper"
     model: str = "whisper-1"
     transcription_prompt: str | None = None
-    audio_preprocessing: Literal["demucs", "noisereduce"] | None = None
+    audio_preprocessing: Literal["demucs", "noisereduce", "deepfilternet"] | None = None
 
 
 class RefinementConfig(BaseModel):

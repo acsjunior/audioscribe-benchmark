@@ -15,6 +15,7 @@ from .reporting.html_reporter import write_html
 from .reporting.json_reporter import write_json
 from .transcription.whisper import WhisperTranscriber
 from .utils.retry import async_retry
+from .deep_filter import filter_noise
 from .noise_reduction import reduce_noise
 from .voice_isolation import isolate_voice
 
@@ -103,6 +104,12 @@ class Pipeline:
                     audio_path = reduce_noise(audio_path)
                 except Exception as e:
                     logger.error(f"  Redução de ruído falhou: {e}")
+                    continue
+            elif preprocessing == "deepfilternet":
+                try:
+                    audio_path = filter_noise(audio_path)
+                except Exception as e:
+                    logger.error(f"  Filtragem DeepFilterNet falhou: {e}")
                     continue
 
             try:

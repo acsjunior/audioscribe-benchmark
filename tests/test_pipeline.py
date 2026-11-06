@@ -302,6 +302,62 @@ async def test_pipeline_calls_reduce_noise_when_enabled(
     assert transcribe_call_path == denoised_path
 
 
+@patch("benchmark.pipeline.filter_noise")
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_pipeline_calls_filter_noise_when_enabled(
+    mock_transcriber_cls, mock_load_catalog, mock_filter_noise, config, fake_song, tmp_path
+):
+    filtered_path = tmp_path / "inputs" / "audio_deepfiltered.wav"
+    filtered_path.parent.mkdir(parents=True, exist_ok=True)
+    filtered_path.write_bytes(b"")
+    mock_filter_noise.return_value = filtered_path
+
+    mock_transcriber = MagicMock()
+    mock_transcriber.transcribe = AsyncMock(return_value="as rosas nao falam")
+    mock_transcriber_cls.return_value = mock_transcriber
+    mock_load_catalog.return_value = [fake_song]
+
+    cfg = ExperimentConfig(
+        experiment_name="teste",
+        metrics=["wer"],
+        catalog_path=str(tmp_path / "catalogo.csv"),
+        results_path=str(tmp_path / "results"),
+        drive={"audio_dir": str(tmp_path / "inputs")},
+        transcription={"audio_preprocessing": "deepfilternet"},
+    )
+    pipeline = Pipeline(cfg)
+    await pipeline.run()
+
+    mock_filter_noise.assert_called_once()
+    transcribe_call_path = mock_transcriber.transcribe.call_args.args[0]
+    assert transcribe_call_path == filtered_path
+
+
+@patch("benchmark.pipeline.filter_noise")
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_pipeline_skips_song_when_filter_noise_fails(
+    mock_transcriber_cls, mock_load_catalog, mock_filter_noise, config, fake_song
+):
+    mock_filter_noise.side_effect = RuntimeError("deepfilternet error")
+    mock_transcriber_cls.return_value = MagicMock()
+    mock_load_catalog.return_value = [fake_song]
+
+    cfg = ExperimentConfig(
+        experiment_name="teste",
+        metrics=["wer"],
+        catalog_path=str(config.catalog_path),
+        results_path=config.results_path,
+        drive={"audio_dir": config.drive.audio_dir},
+        transcription={"audio_preprocessing": "deepfilternet"},
+    )
+    pipeline = Pipeline(cfg)
+    run_dir = await pipeline.run()
+
+    assert not (run_dir / "results.csv").exists()
+
+
 @patch("benchmark.pipeline.load_catalog")
 @patch("benchmark.pipeline.WhisperTranscriber")
 async def test_pipeline_no_preprocessing_by_default(

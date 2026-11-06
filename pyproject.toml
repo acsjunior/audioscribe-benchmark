@@ -23,6 +23,7 @@ dependencies = [
     "demucs>=4.0.1",
     "soundfile>=0.13.1",
     "noisereduce>=3.0.3",
+    "deepfilternet>=0.5.6",
 ]
 
 [project.scripts]
