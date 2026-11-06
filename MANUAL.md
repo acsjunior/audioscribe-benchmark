@@ -149,6 +149,7 @@ transcription:
   provider: whisper
   model: whisper-1    # whisper-1 | gpt-4o-transcribe | gpt-4o-mini-transcribe
   # transcription_prompt: "prompt opcional para contextualizar o Whisper"
+  # audio_preprocessing: demucs  # demucs | noisereduce | deepfilternet (ver seção 5.3)
 
 refinement:
   - provider: openai       # openai | anthropic | google
@@ -187,28 +188,38 @@ Para o Whisper:
 | `gpt-4o-transcribe` | Suporta `transcription_prompt`; usa prompt padrão do projeto se omitido |
 | `gpt-4o-mini-transcribe` | Versão mais leve; sem prompt padrão automático |
 
-### 5.3 Isolamento de voz com demucs
+### 5.3 Pré-processamento de áudio
 
-Quando `voice_isolation: true`, o pipeline processa cada MP3 com demucs antes de enviar para o Whisper. O objetivo é remover ruído de instrumentos e entregar um sinal de voz mais limpo para a transcrição.
+O campo `audio_preprocessing` aplica um tratamento ao MP3 antes de enviá-lo para
+o Whisper. Apenas uma opção pode ser usada por experimento; omitir o campo
+significa transcrever o MP3 original.
 
 ```yaml
 transcription:
   provider: whisper
-  model: whisper-1
-  voice_isolation: true  # padrão: false
+  model: gpt-4o-transcribe
+  audio_preprocessing: demucs  # demucs | noisereduce | deepfilternet
 ```
 
+| Valor | O que faz | Arquivo gerado em `data/inputs/` |
+|---|---|---|
+| `demucs` | Separa a voz dos instrumentos (modelo `htdemucs`) | `<nome>_vocals.wav` |
+| `noisereduce` | Reduz ruído estacionário (chiado, hum) | `<nome>_denoised.wav` |
+| `deepfilternet` | Supressão de ruído com rede neural (DeepFilterNet) | `<nome>_deepfiltered.wav` |
+
 **Como funciona:**
-- O áudio isolado é salvo como `<nome-original>_vocals.wav` em `data/inputs/`
-- Cache automático: se o `_vocals.wav` já existir, o demucs não roda novamente
-- O Whisper transcreve o `.wav` isolado — o MP3 original não é alterado
-- Requer instalação manual do demucs: `uv add demucs` (dependência pesada com PyTorch)
+- O Whisper transcreve o `.wav` processado — o MP3 original não é alterado
+- Cache automático: se o `.wav` já existir, o processamento não roda novamente
+- Se o pré-processamento falhar, a música é pulada e o erro aparece no log
+- As três bibliotecas já estão nas dependências do projeto (`uv sync`); demucs e
+  deepfilternet trazem PyTorch e são pesadas
 
-> **Atenção:** demucs foi treinado principalmente em música moderna. Em gravações
-> antigas (1920-1950), pode introduzir artefatos sonoros. Recomenda-se testar
-> com um subconjunto antes de rodar no dataset completo.
+> **Atenção:** essas ferramentas foram treinadas principalmente em áudio moderno.
+> Nos experimentos até agora, todas pioraram o WER em gravações de 1920-1950
+> (noisereduce e deepfilternet de forma severa). Teste com um subconjunto antes
+> de rodar no dataset completo.
 
-### 5.3 Métricas disponíveis
+### 5.4 Métricas disponíveis
 
 | Métrica | Descrição | Interpretação |
 |---|---|---|
@@ -220,7 +231,7 @@ transcription:
 > do cálculo, penalizando apenas diferenças de conteúdo lexical. Acentuação é
 > preservada — "nao" vs "não" ainda conta como erro.
 
-### 5.4 Exemplos de baterias de testes
+### 5.5 Exemplos de baterias de testes
 
 **Teste rápido (só baseline + um prompt):**
 ```yaml
@@ -331,6 +342,8 @@ Variáveis ausentes no template são substituídas por string vazia (sem erro).
 | Arquivo | Estratégia |
 |---|---|
 | `prompts/minimalist.yaml` | Correção ortográfica mínima sem contexto adicional |
+| `prompts/conservative.yaml` | Intervenção mínima com regras explícitas contra truncamento, inserção/remoção de palavras e dialetização |
+| `prompts/targeted_domain.yaml` | Corrige erros típicos de ASR em 78 rpm (nomes próprios, vocabulário raro do samba), sem dialetizar |
 | `prompts/rich_context.yaml` | Contexto histórico rico sobre sambas antigos |
 | `prompts/archaic_vocab.yaml` | Foco em vocabulário arcaico, gírias e contrações fonéticas |
 | `prompts/few_shot.yaml` | Exemplos de correção guiando o modelo (few-shot) |

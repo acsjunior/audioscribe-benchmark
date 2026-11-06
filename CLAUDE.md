@@ -53,10 +53,10 @@ audioscribe-benchmark/
 │   └── inputs/               # áudios baixados do Google Drive (não commitados)
 ├── prompts/
 │   ├── minimalist.yaml
+│   ├── conservative.yaml
+│   ├── targeted_domain.yaml
 │   ├── rich_context.yaml
-│   ├── rich_context_v2.yaml
 │   ├── archaic_vocab.yaml
-│   ├── archaic_vocab_v2.yaml
 │   └── few_shot.yaml
 ├── src/
 │   └── benchmark/
@@ -64,6 +64,9 @@ audioscribe-benchmark/
 │       ├── models.py             # SongData, ExperimentResult
 │       ├── dataset.py            # load_catalog() — lê catalogo.csv
 │       ├── gdrive.py             # OAuth2 + download do Google Drive
+│       ├── voice_isolation.py    # pré-processamento: demucs (isola a voz)
+│       ├── noise_reduction.py    # pré-processamento: noisereduce
+│       ├── deep_filter.py        # pré-processamento: DeepFilterNet
 │       ├── pipeline.py           # orquestrador principal
 │       ├── cli.py                # entrypoint CLI
 │       ├── config/
@@ -96,8 +99,12 @@ audioscribe-benchmark/
 │           └── retry.py          # async_retry() com backoff exponencial
 ├── tests/
 │   ├── __init__.py
+│   ├── test_cli.py
 │   ├── test_config/
 │   ├── test_dataset.py
+│   ├── test_deep_filter.py
+│   ├── test_noise_reduction.py
+│   ├── test_voice_isolation.py
 │   ├── test_metrics/
 │   ├── test_models.py
 │   ├── test_pipeline.py
@@ -155,6 +162,7 @@ transcription:
   provider: whisper
   model: whisper-1      # whisper-1 | gpt-4o-transcribe | gpt-4o-mini-transcribe
   # transcription_prompt: "prompt opcional"  # gpt-4o-transcribe usa prompt padrão se omitido
+  # audio_preprocessing: demucs  # demucs | noisereduce | deepfilternet (omitir = sem pré-processamento)
 
 refinement:
   - provider: openai        # openai | anthropic | google
@@ -185,10 +193,11 @@ results_path: results
 Para cada música no catálogo:
 1. Verifica se o MP3 já existe em `audio_dir` (cache)
 2. Se não existe, baixa do Google Drive via API
-3. Transcreve com Whisper (ou variante)
-4. Para cada configuração de refinamento: refina com o LLM especificado
-5. Calcula métricas comparando com a letra do catálogo
-6. Salva resultados incrementalmente ao final
+3. Se `audio_preprocessing` estiver definido, pré-processa o áudio (com cache em `.wav`)
+4. Transcreve com Whisper (ou variante)
+5. Para cada configuração de refinamento: refina com o LLM especificado
+6. Calcula métricas comparando com a letra do catálogo
+7. Salva resultados incrementalmente ao final
 
 ### Catálogo CSV como Fonte Única
 Não há pastas por música nem arquivos `ground_truth.md`. Todos os metadados e letras vivem em `data/catalogo.csv`. Os áudios são baixados sob demanda e cacheados em `data/inputs/`.
@@ -208,8 +217,24 @@ Cada métrica implementa `BaseMetric` e é registrada em `METRIC_REGISTRY`. Mét
 ### Prompts como Arquivos Externos
 Prompts definidos em arquivos YAML em `prompts/`. O código nunca hardcoda strings de prompt. Cada experimento registra o caminho e nome do prompt usado para rastreabilidade total.
 
-### Isolamento de Voz (demucs)
-Quando `transcription.voice_isolation: true` no YAML, o pipeline processa o MP3 original com demucs (modelo `htdemucs`) antes de passar para o Whisper. O stem de voz é salvo como `<nome>_vocals.wav` na mesma pasta do áudio original (`audio_dir`). Na segunda execução, o arquivo `.wav` já existe e o demucs não roda novamente. O módulo `voice_isolation.py` tenta importar `demucs` no nível do módulo; se não instalado, `Separator` fica `None` e `isolate_voice()` levanta `ImportError` com instrução de instalação. Demucs é uma dependência opcional: `uv add demucs`.
+### Pré-processamento de Áudio
+O campo `transcription.audio_preprocessing` aceita um único valor (ou é omitido para não pré-processar):
+
+| Valor | Módulo | Função | Arquivo gerado em `audio_dir` |
+|---|---|---|---|
+| `demucs` | `voice_isolation.py` | `isolate_voice()` — separa o stem de voz (modelo `htdemucs`) | `<nome>_vocals.wav` |
+| `noisereduce` | `noise_reduction.py` | `reduce_noise()` — redução de ruído estacionário | `<nome>_denoised.wav` |
+| `deepfilternet` | `deep_filter.py` | `filter_noise()` — supressão de ruído com DeepFilterNet | `<nome>_deepfiltered.wav` |
+
+Todos seguem o mesmo padrão: cache pelo `.wav` gerado (se já existe, não reprocessa); import da biblioteca no nível do módulo dentro de `try/except`, levantando `ImportError` com instrução de instalação se ausente; falha no pré-processamento pula a música (registrada no log) sem derrubar o pipeline. As três bibliotecas estão nas dependências do `pyproject.toml`.
+
+`deep_filter.py` injeta um shim de compatibilidade (`torchaudio.backend.common.AudioMetaData` e `torchaudio.info`) antes de importar `df`, porque o deepfilternet 0.5.x depende de APIs removidas no torchaudio ≥ 2.3.
+
+### Achados dos Experimentos (até 10/05/2026)
+- `gpt-4o-transcribe` é o maior ganho: WER baseline ~0,17–0,21 vs ~0,27 do `whisper-1`.
+- Refinamento com LLM em geral piora o WER; `conservative` é o único prompt que empata com o baseline.
+- Pré-processamento de áudio (demucs, noisereduce, deepfilternet) piorou o baseline em todos os testes — noisereduce e deepfilternet de forma severa.
+- O baseline do `gpt-4o-transcribe` varia entre execuções com a mesma config (0,170 vs 0,202 em `gpt4o-transcribe-02`); diferenças pequenas de WER podem ser ruído.
 
 ### Metadata nos Prompts
 O bloco `user:` dos prompts suporta variáveis `{titulo}`, `{autoria}`, `{interpretacao}`, `{ano}` além de `{transcription}`. O pipeline extrai esses valores do catálogo e os passa para `PromptConfig.format_user()`, que usa `str.format_map(defaultdict(str, ...))` para interpolação segura — variáveis ausentes no template viram string vazia sem KeyError. Isso dá ao LLM contexto de título/artista para ancorar as correções.
