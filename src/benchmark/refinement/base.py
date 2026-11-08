@@ -5,6 +5,8 @@ from pathlib import Path
 
 import yaml
 
+from ..utils.retry import NonRetryableError
+
 
 @dataclass
 class PromptConfig:
@@ -45,6 +47,14 @@ def load_prompt(prompt_file: str) -> PromptConfig:
 
 class TruncatedResponseError(RuntimeError):
     """Levantado quando a resposta do LLM foi cortada por limite de tokens."""
+
+
+class BlockedResponseError(RuntimeError, NonRetryableError):
+    """Levantado quando o provedor bloqueou ou recusou a resposta (filtro de conteúdo/recitação).
+
+    O texto devolvido nesses casos é parcial (cortado no meio da frase) e não pode ser
+    avaliado como uma revisão. Com temperatura 0 o bloqueio se repete, então não há retry.
+    """
 
 
 class BaseRefiner(ABC):

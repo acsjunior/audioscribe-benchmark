@@ -3,7 +3,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from benchmark.refinement import get_refiner
 from benchmark.refinement.anthropic import AnthropicRefiner
-from benchmark.refinement.base import PromptConfig, TruncatedResponseError, load_prompt
+from benchmark.refinement.base import (
+    BlockedResponseError,
+    PromptConfig,
+    TruncatedResponseError,
+    load_prompt,
+)
 from benchmark.refinement.google import GoogleRefiner
 from benchmark.refinement.openai import OpenAIRefiner
 
@@ -265,4 +270,52 @@ async def test_google_raises_on_truncation(mock_client_cls, mocker, prompt):
         return_value=mock_response,
     )
     with pytest.raises(TruncatedResponseError):
+        await refiner.refine("texto", prompt)
+
+
+# --- Bloqueio (filtro de conteúdo / recitação) ---
+
+@patch("benchmark.refinement.openai.AsyncOpenAI")
+async def test_openai_raises_on_content_filter(mock_cls, prompt):
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.choices = [
+        MagicMock(finish_reason="content_filter", message=MagicMock(content="parcial"))
+    ]
+    mock_response.usage = MagicMock(total_tokens=80)
+    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+    mock_cls.return_value = mock_client
+
+    refiner = OpenAIRefiner(model="gpt-4o")
+    with pytest.raises(BlockedResponseError):
+        await refiner.refine("texto", prompt)
+
+
+@patch("benchmark.refinement.anthropic.AsyncAnthropic")
+async def test_anthropic_raises_on_refusal(mock_cls, prompt):
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.stop_reason = "refusal"
+    mock_response.content = [MagicMock(text="parcial")]
+    mock_response.usage = MagicMock(input_tokens=40, output_tokens=10)
+    mock_client.messages.create = AsyncMock(return_value=mock_response)
+    mock_cls.return_value = mock_client
+
+    refiner = AnthropicRefiner(model="claude-opus-4-7")
+    with pytest.raises(BlockedResponseError):
+        await refiner.refine("texto", prompt)
+
+
+@patch("benchmark.refinement.google.genai.Client")
+async def test_google_raises_on_recitation(mock_client_cls, mocker, prompt):
+    mock_client_cls.return_value = MagicMock()
+    refiner = GoogleRefiner(model="gemini-2.0-flash")
+
+    finish = MagicMock()
+    finish.name = "RECITATION"
+    mock_response = MagicMock(candidates=[MagicMock(finish_reason=finish)])
+    mock_response.usage_metadata = None
+
+    mocker.patch.object(refiner.client.models, "generate_content", return_value=mock_response)
+    with pytest.raises(BlockedResponseError):
         await refiner.refine("texto", prompt)

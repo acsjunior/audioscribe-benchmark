@@ -97,6 +97,7 @@ audioscribe-benchmark/
 │       │   ├── csv_reporter.py
 │       │   ├── json_reporter.py  # write_json() / read_json()
 │       │   ├── stats.py          # analyze(): análise pareada contra o baseline (E2)
+│       │   ├── errors.py         # analyze_errors(): sub/omissão/inserção e alertas (E4)
 │       │   └── html_reporter.py  # relatório HTML: ranking, análise estatística, comparações
 │       └── utils/
 │           ├── __init__.py
@@ -257,8 +258,18 @@ Cada métrica implementa `BaseMetric` e é registrada em `METRIC_REGISTRY`. Mét
 - **Falha grave** = avaliação (música × rodada) com piora maior que `analysis.severe_failure_threshold` (padrão 0,2) — a revisão com LLM costuma melhorar quase todas as músicas e destruir algumas; a média esconde isso, a mediana e a taxa de falhas graves não. `worst_cases` lista as 3 piores.
 - Baseline: média, mediana, desvio entre músicas e `mean_std_between_runs` (desvio médio entre rodadas de uma mesma música, o "ruído" da transcrição; `null` com 1 rodada).
 - Métodos saem ordenados pelo ganho mediano. Avaliações com erro ou métrica nula e linhas sem baseline pareado são ignoradas.
-- Configuração no YAML: bloco `analysis` (`bootstrap_samples`, `confidence`, `seed`, `severe_failure_threshold`). Se a análise falhar, o pipeline registra um aviso e ainda grava CSV/JSON/HTML.
+- Configuração no YAML: bloco `analysis` (`bootstrap_samples`, `confidence`, `seed`, `severe_failure_threshold`, `length_ratio_min`, `length_ratio_max`). Se a análise falhar, o pipeline registra um aviso e ainda grava CSV/JSON/HTML.
 - `benchmark analyze <results.json>` refaz `stats.json` e `report.html` a partir de resultados já existentes (inclusive de execuções antigas, sem `run`/`split`).
+
+### Diagnóstico de Erros
+`reporting/errors.py` decompõe o WER de cada avaliação (música × rodada × método) sobre as palavras normalizadas (`jiwer.process_words`): substituições + omissões + inserções, divididas pelo nº de palavras da letra (somam o WER). Calculado a partir dos textos em `results.json`, então `benchmark analyze` o gera também para resultados antigos. Sai em `stats.json` (chave `errors`) e na seção "Diagnóstico de Erros" do `report.html`.
+
+- **Razão de comprimento** = palavras da transcrição / palavras da letra (mediana entre músicas): < 1 trechos pulados, > 1 trechos inventados/repetidos.
+- **Alertas por avaliação**: `wer_zero` (WER exatamente 0, suspeito em 78 rpm), `curta` (razão < `analysis.length_ratio_min`, padrão 0,7), `longa` (razão > `analysis.length_ratio_max`, padrão 1,3). `flagged` lista até 10 casos por método, os mais distantes de 1.
+- Baseline aparece como método sem provedor. Avaliações com erro são ignoradas.
+
+### Respostas bloqueadas
+`BlockedResponseError` (em `refinement/base.py`) é levantado quando o provedor bloqueia a resposta: OpenAI `finish_reason=content_filter`, Anthropic `stop_reason=refusal`, Google `SAFETY/RECITATION/BLOCKLIST/PROHIBITED_CONTENT/SPII`. É `NonRetryableError` (`utils/retry.py`): com temperatura 0 o bloqueio se repete, então não há retry. Antes disso a resposta parcial era avaliada como se fosse a revisão — foi a causa da falha de `alcides-gerardi-antonico` na fase exploratória (gpt-4o, filtro de conteúdo/recitação cortava a saída em ~18 palavras; reproduzido 3/3 com `minimalist`).
 
 ### Prompts como Arquivos Externos
 Prompts definidos em arquivos YAML em `prompts/`. O código nunca hardcoda strings de prompt. Cada experimento registra o caminho e nome do prompt usado para rastreabilidade total.
@@ -289,7 +300,7 @@ O bloco `user:` dos prompts suporta variáveis `{titulo}`, `{autoria}`, `{interp
 Todo o código de I/O usa `async/await` para permitir adição de concorrência no futuro sem refatoração. A execução atual é sequencial (`asyncio.run()`).
 
 ### Resiliência e Detecção de Truncamento
-Retry automático com backoff exponencial via `async_retry()`. Falhas isoladas (download, transcrição ou refinamento) nunca derrubam o pipeline — o erro é registrado e a execução continua. Respostas truncadas por limite de tokens levantam `TruncatedResponseError` (detectado via `finish_reason`/`stop_reason` de cada provedor), disparando o retry automaticamente. Se todas as tentativas falharem, o erro aparece no relatório.
+Retry automático com backoff exponencial via `async_retry()`. Falhas isoladas (download, transcrição ou refinamento) nunca derrubam o pipeline — o erro é registrado e a execução continua. Respostas truncadas por limite de tokens levantam `TruncatedResponseError` (detectado via `finish_reason`/`stop_reason` de cada provedor), disparando o retry automaticamente. Respostas bloqueadas pelo provedor levantam `BlockedResponseError`, sem retry (ver "Respostas bloqueadas"). Se todas as tentativas falharem, o erro aparece no relatório.
 
 ---
 

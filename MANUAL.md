@@ -202,6 +202,8 @@ analysis:                  # opcional — ver seção 8.4
   confidence: 0.95
   severe_failure_threshold: 0.2
   seed: 0
+  length_ratio_min: 0.7    # alerta "curta" (seção 8.5)
+  length_ratio_max: 1.3    # alerta "longa"
 ```
 
 ### 5.2 Provedores e modelos disponíveis
@@ -485,7 +487,9 @@ logging:
 
 O pipeline tem retry automático com backoff exponencial para chamadas de API.
 Se uma resposta do LLM for truncada por limite de tokens, ela é descartada e a
-chamada é repetida automaticamente. Falhas isoladas nunca derrubam o pipeline —
+chamada é repetida automaticamente. Se o provedor *bloquear* a resposta (filtro
+de conteúdo ou de recitação de letras), a avaliação é registrada como erro, sem
+repetir a chamada: o bloqueio se repete e o texto devolvido viria cortado. Falhas isoladas nunca derrubam o pipeline —
 o erro é registrado no CSV/HTML e a execução continua para as demais músicas.
 
 ---
@@ -595,6 +599,31 @@ analysis:
 ```
 
 O `stats.json` guarda todos esses números para uso em tabelas e gráficos.
+
+### 8.5 Diagnóstico de erros
+
+O WER diz *quanto* errou, não *como*. A seção "Diagnóstico de Erros" do relatório
+(chave `errors` do `stats.json`) separa o WER em três partes, dividindo pelo número
+de palavras da letra, de modo que **substituições + omissões + inserções = WER**:
+
+| Coluna | Significado |
+|---|---|
+| Substituições | Palavra ouvida/trocada por outra |
+| Omissões | Palavra da letra que sumiu da transcrição |
+| Inserções | Palavra na transcrição que não existe na letra |
+| Razão de comprimento | Palavras da transcrição ÷ palavras da letra (mediana entre músicas) |
+
+Alertas, contados por avaliação (música × rodada):
+
+- **WER 0**: improvável em gravação de 78 rpm; suspeite de letra copiada,
+  memorização do modelo ou erro na referência.
+- **Curta** (razão < 0,7): trechos pulados. Numa revisão com LLM, é o sinal de
+  resposta cortada ou recusada.
+- **Longa** (razão > 1,3): trechos inventados ou repetidos.
+
+Uma revisão que *omite* muito mais que o baseline está resumindo ou cortando, e
+não corrigindo. O diagnóstico também funciona em resultados antigos:
+`benchmark analyze results.json`.
 
 ---
 

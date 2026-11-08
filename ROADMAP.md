@@ -66,9 +66,20 @@ comando `benchmark analyze` refaz a análise de resultados existentes.
 `whisper-1`, `gpt-4o-transcribe` e `gpt-4o-transcribe` + `conservative`, com
 n=5, no conjunto dev. Define a referência a ser batida.
 
-**E4. Diagnóstico de tipos de erro**
+**E4. Diagnóstico de tipos de erro** — ✅ concluído
 WER decomposto em substituições, omissões e inserções; razão de comprimento
-transcrição/letra; alerta para resultados suspeitos (ex.: WER 0 em 78 rpm).
+transcrição/letra; alertas para resultados suspeitos (WER 0, transcrição curta ou
+longa demais). Sai em `stats.json` (`errors`) e no `report.html`.
+
+> **Falha de `alcides-gerardi-antonico` esclarecida**: não era erro de revisão. O
+> `gpt-4o` devolvia a letra cortada em ~18 palavras (razão de comprimento 0,11–0,23)
+> com `finish_reason=content_filter` — filtro de conteúdo/recitação, reproduzido 3/3
+> com temperatura 0. O texto parcial era avaliado como se fosse a revisão. Agora
+> respostas bloqueadas viram erro (`BlockedResponseError`), sem retry. Outros casos
+> curtos dos resultados antigos (razão ~0,5, ex.: `ze-zilda-paulo-da-portela`) podem
+> ter a mesma causa ou ser resumo do modelo; não verificado. Na rodada oficial, a taxa de
+> bloqueio por provedor deve ser reportada à parte, pois bloqueios saem da análise
+> pareada como erros.
 
 ### Fase 2 — Métodos sem conferência
 

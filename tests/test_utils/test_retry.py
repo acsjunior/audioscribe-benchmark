@@ -52,3 +52,18 @@ async def test_single_attempt_raises_immediately():
 
     with pytest.raises(ValueError):
         await fn()
+
+
+async def test_non_retryable_error_is_not_retried():
+    from benchmark.utils.retry import NonRetryableError
+
+    calls = []
+
+    @async_retry(max_attempts=3, backoff_factor=0)
+    async def fn():
+        calls.append(1)
+        raise NonRetryableError("bloqueado")
+
+    with pytest.raises(NonRetryableError):
+        await fn()
+    assert len(calls) == 1

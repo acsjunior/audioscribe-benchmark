@@ -133,6 +133,47 @@ _TEMPLATE = """<!DOCTYPE html>
   <p class="note">Nenhum método de refinamento para comparar com o baseline.</p>
   {% endif %}
   {% endfor %}
+
+  {% if analysis.errors and analysis.errors.methods %}
+  <h2>Diagnóstico de Erros</h2>
+  <p class="note">
+    O WER decomposto sobre as palavras da letra: <strong>substituições</strong> +
+    <strong>omissões</strong> + <strong>inserções</strong> = WER (médias por música).
+    A <strong>razão de comprimento</strong> é palavras da transcrição / palavras da letra
+    (mediana entre músicas). Alertas por avaliação: <em>WER 0</em> (suspeito em
+    gravação antiga), <em>curta</em> (razão &lt; {{ analysis.errors.length_ratio_min }},
+    trechos omitidos) e <em>longa</em> (razão &gt; {{ analysis.errors.length_ratio_max }},
+    trechos inventados ou repetidos).
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Método</th><th>Prompt</th><th class="num">Músicas</th>
+        <th class="num">Substituições</th><th class="num">Omissões</th><th class="num">Inserções</th>
+        <th class="num">Razão de comprimento</th>
+        <th class="num">WER 0</th><th class="num">Curtas</th><th class="num">Longas</th>
+        <th>Caso mais extremo</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in analysis.errors.methods %}
+      <tr>
+        <td>{% if m.provider %}{{ m.provider }}/{{ m.model }}{% else %}baseline{% endif %}</td>
+        <td>{{ m.prompt or "—" }}</td>
+        <td class="num">{{ m.num_songs }}</td>
+        <td class="num">{{ num(m.sub_rate) }}</td>
+        <td class="num">{{ num(m.del_rate) }}</td>
+        <td class="num">{{ num(m.ins_rate) }}</td>
+        <td class="num">{{ num(m.length_ratio_median) }}</td>
+        <td class="num">{{ m.alerts.wer_zero }}</td>
+        <td class="num">{{ m.alerts.curta }}</td>
+        <td class="num">{{ m.alerts.longa }}</td>
+        <td>{% if m.flagged %}{{ m.flagged[0].song_id }} (razão {{ num(m.flagged[0].length_ratio) }}){% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
   {% endif %}
 
   <h2>Resultados por Música</h2>

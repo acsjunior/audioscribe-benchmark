@@ -26,6 +26,7 @@ from scipy import stats as scipy_stats
 
 from ..config.schema import AnalysisConfig
 from ..models import ExperimentResult
+from .errors import analyze_errors
 
 TIE_TOLERANCE = 1e-9
 WORST_CASES = 3
@@ -199,10 +200,13 @@ def analyze(
             "confidence": config.confidence,
             "severe_failure_threshold": config.severe_failure_threshold,
             "seed": config.seed,
+            "length_ratio_min": config.length_ratio_min,
+            "length_ratio_max": config.length_ratio_max,
         },
         "num_songs": len({r.song_id for r in results}),
         "num_runs": max((r.run for r in results), default=0),
         "metrics": {m: _analyze_metric(results, m, config) for m in metric_names},
+        "errors": analyze_errors(results, config),
     }
 
 

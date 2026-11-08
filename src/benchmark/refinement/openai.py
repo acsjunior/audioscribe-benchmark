@@ -3,7 +3,13 @@ import time
 
 from openai import AsyncOpenAI
 
-from .base import BaseRefiner, PromptConfig, RefinementResult, TruncatedResponseError
+from .base import (
+    BaseRefiner,
+    BlockedResponseError,
+    PromptConfig,
+    RefinementResult,
+    TruncatedResponseError,
+)
 
 logger = logging.getLogger("benchmark")
 
@@ -39,6 +45,11 @@ class OpenAIRefiner(BaseRefiner):
         if choice.finish_reason == "length":
             raise TruncatedResponseError(
                 f"OpenAI {self.model} truncou a resposta (finish_reason=length)"
+            )
+
+        if choice.finish_reason == "content_filter":
+            raise BlockedResponseError(
+                f"OpenAI {self.model} bloqueou a resposta (finish_reason=content_filter)"
             )
 
         logger.debug(f"OpenAI {self.model} — tokens: {response.usage.total_tokens}, time: {elapsed:.0f}ms")

@@ -9,6 +9,10 @@ logger = logging.getLogger("benchmark")
 T = TypeVar("T")
 
 
+class NonRetryableError(Exception):
+    """Erro determinístico: repetir a chamada não muda o resultado."""
+
+
 def async_retry(max_attempts: int, backoff_factor: float) -> Callable:
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
@@ -16,6 +20,8 @@ def async_retry(max_attempts: int, backoff_factor: float) -> Callable:
             for attempt in range(1, max_attempts + 1):
                 try:
                     return await func(*args, **kwargs)
+                except NonRetryableError:
+                    raise
                 except Exception as e:
                     if attempt == max_attempts:
                         raise

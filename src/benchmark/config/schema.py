@@ -43,6 +43,8 @@ class AnalysisConfig(BaseModel):
     # Piora (na métrica) acima da qual uma avaliação conta como falha grave.
     severe_failure_threshold: float = Field(default=0.2, gt=0.0)
     seed: int = 0
+    length_ratio_min: float = Field(default=0.7, gt=0.0)
+    length_ratio_max: float = Field(default=1.3, gt=1.0)
 
 
 class ExperimentConfig(BaseModel):

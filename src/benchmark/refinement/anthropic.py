@@ -3,7 +3,13 @@ import time
 
 from anthropic import AsyncAnthropic
 
-from .base import BaseRefiner, PromptConfig, RefinementResult, TruncatedResponseError
+from .base import (
+    BaseRefiner,
+    BlockedResponseError,
+    PromptConfig,
+    RefinementResult,
+    TruncatedResponseError,
+)
 
 logger = logging.getLogger("benchmark")
 
@@ -39,6 +45,11 @@ class AnthropicRefiner(BaseRefiner):
         if response.stop_reason == "max_tokens":
             raise TruncatedResponseError(
                 f"Anthropic {self.model} truncou a resposta (stop_reason=max_tokens)"
+            )
+
+        if response.stop_reason == "refusal":
+            raise BlockedResponseError(
+                f"Anthropic {self.model} recusou a resposta (stop_reason=refusal)"
             )
 
         tokens = response.usage.input_tokens + response.usage.output_tokens

@@ -6,9 +6,25 @@ import time
 from google import genai
 from google.genai import types
 
-from .base import BaseRefiner, PromptConfig, RefinementResult, TruncatedResponseError
+from .base import (
+    BaseRefiner,
+    BlockedResponseError,
+    PromptConfig,
+    RefinementResult,
+    TruncatedResponseError,
+)
 
 logger = logging.getLogger("benchmark")
+
+
+# Motivos de término em que o Gemini bloqueia a resposta (filtro de segurança/recitação).
+BLOCKED_FINISH_REASONS = {
+    "SAFETY",
+    "RECITATION",
+    "BLOCKLIST",
+    "PROHIBITED_CONTENT",
+    "SPII",
+}
 
 
 class GoogleRefiner(BaseRefiner):
@@ -41,6 +57,12 @@ class GoogleRefiner(BaseRefiner):
             ),
         )
         elapsed = (time.monotonic() - start) * 1000
+
+        finish = response.candidates[0].finish_reason if response.candidates else None
+        if finish is not None and finish.name in BLOCKED_FINISH_REASONS:
+            raise BlockedResponseError(
+                f"Google {self.model} bloqueou a resposta (finish_reason={finish.name})"
+            )
 
         if (
             response.candidates
