@@ -44,16 +44,23 @@ versões de modelos. Vira a seção de metodologia do trabalho.
 
 ### Fase 1 — Medir direito
 
-**E1. Repetições e cache de transcrições**
+**E1. Repetições e cache de transcrições** — ✅ concluído
 Cada música é transcrita `n` vezes (`transcription.runs`); as transcrições ficam em
 cache em disco e são reaproveitadas entre experimentos, para que métodos de revisão
 sejam comparados sobre exatamente as mesmas transcrições. Inclui a coluna `Split`
 no catálogo e o filtro `split` no YAML (padrão `dev`).
 
-**E2. Relatório estatístico**
-Por música: média e dispersão das rodadas. Por método: média, mediana, em quantas
-músicas melhorou vs. baseline, taxa de falhas graves e intervalo de confiança
-(bootstrap) da diferença pareada. Testes robustos (Wilcoxon / contagem de vitórias).
+**E2. Relatório estatístico** — ✅ concluído
+Comparação pareada de cada método com o baseline (mesma música e rodada): ganho
+médio e mediano com intervalo de confiança por bootstrap sobre as músicas, em
+quantas músicas melhorou/empatou/piorou, Wilcoxon e taxa de falhas graves; no
+baseline, o ruído entre rodadas. Sai em `stats.json` e no `report.html`, e o
+comando `benchmark analyze` refaz a análise de resultados existentes.
+
+> Na reanálise dos resultados exploratórios, a "piora" da revisão com LLM veio
+> de uma única música (`alcides-gerardi-antonico`, piora de ~0,7–0,86 em todos os
+> prompts); na música típica o ganho era pequeno e positivo. Investigar essa
+> falha é parte do E4.
 
 **E3. Remedir a linha de base** *(experimento)*
 `whisper-1`, `gpt-4o-transcribe` e `gpt-4o-transcribe` + `conservative`, com

@@ -196,6 +196,12 @@ drive:
   audio_dir: data/inputs   # onde os MP3s são baixados e cacheados
 
 results_path: results
+
+analysis:                  # opcional — ver seção 8.4
+  bootstrap_samples: 10000
+  confidence: 0.95
+  severe_failure_threshold: 0.2
+  seed: 0
 ```
 
 ### 5.2 Provedores e modelos disponíveis
@@ -435,6 +441,16 @@ Opções:
   --help             Exibe esta mensagem de ajuda
 ```
 
+Para refazer a análise estatística de uma execução que já existe (inclusive as
+antigas, de antes das rodadas), sem chamar nenhuma API:
+
+```bash
+uv run python -m benchmark analyze results/<experimento>_<timestamp>/results.json
+```
+
+Opções: `-o PASTA` grava `stats.json` e `report.html` em outra pasta (por padrão,
+sobrescreve os da pasta do `results.json`), `--severe-threshold` e `--seed`.
+
 ### 7.2 Acompanhando a execução
 
 No modo `normal`, o log exibe o progresso de cada música e experimento:
@@ -483,7 +499,8 @@ results/
 └── {experiment_name}_{timestamp}/
     ├── results.csv    ← tabela com todos os experimentos
     ├── results.json   ← mesmos dados em formato JSON
-    └── report.html    ← relatório visual com ranking
+    ├── stats.json     ← análise estatística (seção 8.4)
+    └── report.html    ← relatório visual com ranking e análise estatística
 ```
 
 ### 8.1 Relatório HTML
@@ -492,6 +509,9 @@ Abra o `report.html` no navegador para visualizar:
 
 - **Ranking por combinação:** média das métricas de cada combinação LLM + prompt,
   ordenada da melhor para a pior
+- **Análise estatística:** comparação de cada método com o baseline, com
+  intervalos de confiança (seção 8.4). **Prefira esta seção ao ranking** para
+  concluir se um método ajuda: a média sozinha pode enganar
 - **Resultados por música:** métricas individuais de cada experimento por música,
   facilitando a identificação de casos onde uma abordagem se destaca
 
@@ -528,6 +548,53 @@ Colunas principais:
 Todo experimento inclui automaticamente uma linha de **baseline** por música:
 a transcrição bruta do Whisper avaliada sem nenhum refinamento.
 Isso permite medir exatamente o ganho (ou perda) de cada estratégia de LLM.
+
+### 8.4 Análise estatística
+
+A média das métricas (o ranking) pode enganar: a revisão com LLM costuma
+melhorar levemente quase todas as músicas e, de vez em quando, destruir uma —
+essa única falha puxa a média para o lado errado. Por isso o relatório traz, para
+cada método e cada métrica, uma comparação **pareada** com o baseline.
+
+**Como é calculada.** Cada revisão é comparada com o baseline da *mesma música e
+da mesma rodada* (mesma transcrição de partida). O resultado é o **ganho**:
+positivo significa que o método melhorou a métrica (para WER/CER, o valor
+diminuiu; para BERTScore, aumentou). O ganho de uma música é a média das suas
+rodadas — a música é a unidade de análise.
+
+| Coluna | Como ler |
+|---|---|
+| Ganho médio [IC] | Média do ganho entre músicas, com intervalo de confiança (padrão 95%, por bootstrap). Sensível a falhas isoladas |
+| Ganho mediano [IC] | Ganho da música típica. Pouco afetado por falhas isoladas |
+| Melhorou / empatou / piorou | Em quantas músicas o método ganhou, empatou e perdeu para o baseline |
+| p (Wilcoxon) | Teste de postos sinalizados sobre os ganhos por música. Não é corrigido para múltiplas comparações |
+| Falhas graves | Avaliações em que a métrica piorou mais que o limite (padrão 0,2) |
+| Pior caso | Música com a maior piora |
+
+Em verde, o intervalo está todo acima de zero (melhora confiável); em vermelho,
+todo abaixo (piora confiável). Se o intervalo inclui o zero, a diferença pode ser
+só variação.
+
+**Exemplo de leitura.** Ganho médio negativo e ganho mediano positivo, com 17
+músicas melhores e 2 piores, indicam que o método ajuda na maioria das músicas
+mas tem uma falha grave — olhe o "pior caso".
+
+O resumo do baseline mostra a média, a mediana, o desvio entre músicas e, com
+mais de uma rodada, a **variação entre rodadas** (desvio médio das rodadas de
+uma mesma música): é o ruído da transcrição, que diferenças pequenas entre
+métodos precisam superar.
+
+Os parâmetros ficam no bloco opcional `analysis` do YAML:
+
+```yaml
+analysis:
+  bootstrap_samples: 10000       # reamostragens do bootstrap
+  confidence: 0.95               # nível dos intervalos
+  severe_failure_threshold: 0.2  # piora que conta como falha grave
+  seed: 0                        # semente (resultado reproduzível)
+```
+
+O `stats.json` guarda todos esses números para uso em tabelas e gráficos.
 
 ---
 

@@ -150,9 +150,10 @@ Os resultados ficam em `results/{experimento}_{timestamp}/`:
 
 | Arquivo | Conteúdo |
 |---|---|
-| `report.html` | Relatório visual com ranking das combinações e métricas por música |
-| `results.csv` | Uma linha por música × combinação, com métricas, tokens e tempo |
+| `report.html` | Relatório visual com ranking, análise estatística e métricas por música |
+| `results.csv` | Uma linha por música × rodada × combinação, com métricas, tokens e tempo |
 | `results.json` | Os mesmos dados em JSON |
+| `stats.json` | Análise estatística pareada contra o baseline (ganhos, intervalos de confiança, falhas graves) |
 
 Os logs da execução ficam em `logs/`.
 

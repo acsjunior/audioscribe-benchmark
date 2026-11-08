@@ -95,8 +95,9 @@ audioscribe-benchmark/
 │       ├── reporting/
 │       │   ├── __init__.py
 │       │   ├── csv_reporter.py
-│       │   ├── json_reporter.py
-│       │   └── html_reporter.py  # relatório HTML com tabela comparativa e ranking
+│       │   ├── json_reporter.py  # write_json() / read_json()
+│       │   ├── stats.py          # analyze(): análise pareada contra o baseline (E2)
+│       │   └── html_reporter.py  # relatório HTML: ranking, análise estatística, comparações
 │       └── utils/
 │           ├── __init__.py
 │           ├── logging.py        # setup_logging(), modos normal/verbose
@@ -112,7 +113,7 @@ audioscribe-benchmark/
 │   ├── test_metrics/
 │   ├── test_models.py
 │   ├── test_pipeline.py
-│   ├── test_pipeline_runs.py     # rodadas, cache de transcrições e split
+│   ├── test_pipeline_runs.py     # rodadas, cache de transcrições, split e stats.json
 │   ├── test_refinement/
 │   ├── test_reporting/
 │   ├── test_transcription/
@@ -122,6 +123,7 @@ audioscribe-benchmark/
     └── {experimento}_{timestamp}/
         ├── results.csv
         ├── results.json
+        ├── stats.json            # análise estatística (ver "Análise Estatística")
         └── report.html
 ```
 
@@ -246,6 +248,18 @@ Cada provedor (OpenAI, Anthropic, Google) tem seu próprio adapter implementando
 ### Módulos de Métricas
 Cada métrica implementa `BaseMetric` e é registrada em `METRIC_REGISTRY`. Métricas disponíveis: WER, CER, BERTScore.
 
+### Análise Estatística
+`reporting/stats.py` compara cada método de refinamento com o baseline de forma **pareada**: a revisão de uma transcrição é comparada com o baseline daquela mesma música e rodada (mesmo texto de partida). Resultado em `stats.json` e na seção "Análise Estatística" do `report.html`.
+
+- **Ganho** = `baseline - método` (WER/CER) ou `método - baseline` (BERTScore; `higher_is_better()` = nome contém "score"). Positivo sempre é melhora.
+- **Unidade de análise = música**: o ganho por música é a média do ganho nas rodadas, porque rodadas da mesma música não são independentes.
+- Por método: ganho médio e mediano, cada um com IC por bootstrap percentil (reamostrando músicas; `seed` fixo → determinístico), melhorou/empatou/piorou, p-valor de Wilcoxon (empates descartados; **sem correção para múltiplas comparações**) e falhas graves.
+- **Falha grave** = avaliação (música × rodada) com piora maior que `analysis.severe_failure_threshold` (padrão 0,2) — a revisão com LLM costuma melhorar quase todas as músicas e destruir algumas; a média esconde isso, a mediana e a taxa de falhas graves não. `worst_cases` lista as 3 piores.
+- Baseline: média, mediana, desvio entre músicas e `mean_std_between_runs` (desvio médio entre rodadas de uma mesma música, o "ruído" da transcrição; `null` com 1 rodada).
+- Métodos saem ordenados pelo ganho mediano. Avaliações com erro ou métrica nula e linhas sem baseline pareado são ignoradas.
+- Configuração no YAML: bloco `analysis` (`bootstrap_samples`, `confidence`, `seed`, `severe_failure_threshold`). Se a análise falhar, o pipeline registra um aviso e ainda grava CSV/JSON/HTML.
+- `benchmark analyze <results.json>` refaz `stats.json` e `report.html` a partir de resultados já existentes (inclusive de execuções antigas, sem `run`/`split`).
+
 ### Prompts como Arquivos Externos
 Prompts definidos em arquivos YAML em `prompts/`. O código nunca hardcoda strings de prompt. Cada experimento registra o caminho e nome do prompt usado para rastreabilidade total.
 
@@ -307,6 +321,9 @@ uv sync
 
 # Executar uma bateria de testes
 uv run python -m benchmark run --config config/experiments/example.yaml
+
+# Refazer a análise estatística de uma execução existente
+uv run python -m benchmark analyze results/<experimento>_<timestamp>/results.json
 
 # Rodar testes
 uv run pytest
