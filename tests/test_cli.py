@@ -8,7 +8,8 @@ CONFIG_YAML = """\
 experiment_name: teste
 metrics:
   - wer
-dataset_path: data/dataset
+drive:
+  credentials_path: nao_existe_credentials.json
 results_path: results
 """
 
