@@ -20,10 +20,14 @@ transcription:
   # Quando model=gpt-4o-transcribe e transcription_prompt não é definido,
   # o pipeline usa automaticamente o prompt padrão do projeto.
   #
-  # audio_preprocessing: demucs       # isola a voz via demucs (requer: uv add demucs)
-  # audio_preprocessing: noisereduce  # reduz ruído estacionário (requer: uv add noisereduce)
+  # audio_preprocessing: demucs         # isola a voz
+  # audio_preprocessing: noisereduce    # reduz ruído estacionário
+  # audio_preprocessing: deepfilternet  # supressão de ruído com rede neural
   # Omitir ou deixar sem valor = sem pré-processamento (padrão)
   # Apenas uma opção pode ser usada por experimento.
+  #
+  runs: 1      # transcrições independentes por música; o refinamento roda em cada uma
+  cache: true  # reaproveita transcrições salvas em data/transcriptions/
 
 refinement:
   - provider: openai
@@ -48,6 +52,7 @@ metrics:
   - bertscore
 
 catalog_path: data/catalogo.csv
+split: dev   # dev | test | all — o conjunto de teste só deve ser rodado na avaliação final
 
 drive:
   credentials_path: credentials.json

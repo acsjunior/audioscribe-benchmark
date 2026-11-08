@@ -40,6 +40,7 @@ _TEMPLATE = """<!DOCTYPE html>
     Experimento: <strong>{{ experiment_name }}</strong> &nbsp;·&nbsp;
     Gerado em: {{ generated_at }} &nbsp;·&nbsp;
     Músicas: {{ num_songs }} &nbsp;·&nbsp;
+    Rodadas: {{ num_runs }} &nbsp;·&nbsp;
     Experimentos: {{ num_experiments }}
   </div>
 
@@ -49,7 +50,7 @@ _TEMPLATE = """<!DOCTYPE html>
       <tr>
         <th>#</th><th>Provedor / Modelo</th><th>Prompt</th>
         {% for m in metric_names %}<th>{{ m | upper }}</th>{% endfor %}
-        <th>Músicas</th>
+        <th>Músicas</th><th>Avaliações</th>
       </tr>
     </thead>
     <tbody>
@@ -62,6 +63,7 @@ _TEMPLATE = """<!DOCTYPE html>
         <td>{% if row.avg_metrics.get(m) is not none %}{{ "%.4f" | format(row.avg_metrics[m]) }}{% else %}—{% endif %}</td>
         {% endfor %}
         <td>{{ row.num_songs }}</td>
+        <td>{{ row.num_evaluations }}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -81,7 +83,7 @@ _TEMPLATE = """<!DOCTYPE html>
     <tbody>
       {% for r in song_results %}
       <tr>
-        <td>{% if r.error %}<span class="error-cell">ERRO: {{ r.error }}</span>{% else %}{{ r.experiment_label }}{% endif %}</td>
+        <td>{% if r.error %}<span class="error-cell">ERRO: {{ r.error }}</span>{% else %}{{ r.experiment_label }}{% endif %}{% if multi_run %} · rodada {{ r.run }}{% endif %}</td>
         {% for m in metric_names %}
         <td>{% if r.metrics.get(m) is not none %}{{ "%.4f" | format(r.metrics[m]) }}{% else %}—{% endif %}</td>
         {% endfor %}
@@ -113,14 +115,17 @@ _TEMPLATE = """<!DOCTYPE html>
 </html>"""
 
 
-def _build_comparison(by_song: dict[str, list[ExperimentResult]]) -> dict[str, dict]:
+def _build_comparison(
+    by_song: dict[str, list[ExperimentResult]], multi_run: bool = False
+) -> dict[str, dict]:
     comparison: dict[str, dict] = {}
     for song_id, song_results in by_song.items():
         ground_truth = song_results[0].ground_truth
         entries = []
         for r in song_results:
             text = r.refined_transcription if r.refined_transcription else r.whisper_transcription
-            entries.append({"label": r.experiment_label, "text": text})
+            label = f"{r.experiment_label} · rodada {r.run}" if multi_run else r.experiment_label
+            entries.append({"label": label, "text": text})
         comparison[song_id] = {
             "interpretacao": song_results[0].interpretacao,
             "titulo": song_results[0].titulo,
@@ -148,7 +153,8 @@ def _build_ranking(results: list[ExperimentResult], metric_names: list[str]) -> 
             "model": model,
             "prompt": prompt,
             "avg_metrics": avg_metrics,
-            "num_songs": len(combo_results),
+            "num_songs": len({r.song_id for r in combo_results}),
+            "num_evaluations": len(combo_results),
         })
 
     if metric_names:
@@ -173,13 +179,18 @@ def write_html(results: list[ExperimentResult], output_path: Path, experiment_na
     for r in results:
         by_song[r.song_id].append(r)
 
+    num_runs = max(r.run for r in results)
+    multi_run = num_runs > 1
+
     ranking = _build_ranking(results, metric_names)
-    comparison = _build_comparison(dict(by_song))
+    comparison = _build_comparison(dict(by_song), multi_run=multi_run)
 
     html = Template(_TEMPLATE).render(
         experiment_name=experiment_name,
         generated_at=datetime.now().strftime("%d/%m/%Y %H:%M"),
         num_songs=len(by_song),
+        num_runs=num_runs,
+        multi_run=multi_run,
         num_experiments=len(results),
         metric_names=metric_names,
         ranking=ranking,

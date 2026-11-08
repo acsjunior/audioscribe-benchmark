@@ -13,6 +13,7 @@ class SongData:
     audio_url: str
     audio_filename: str
     ground_truth: str
+    split: str = "dev"
 
 
 @dataclass
@@ -35,6 +36,8 @@ class ExperimentResult:
     error: str | None = None
     tokens_used: int | None = None
     response_time_ms: float | None = None
+    run: int = 1
+    split: str = "dev"
 
     @property
     def evaluated_transcription(self) -> str:

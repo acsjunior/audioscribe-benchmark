@@ -6,6 +6,9 @@ token.json
 # Áudios baixados e pré-processados
 data/inputs/
 
+# Cache de transcrições (saída bruta das APIs)
+data/transcriptions/
+
 # Python
 __pycache__/
 *.pyc

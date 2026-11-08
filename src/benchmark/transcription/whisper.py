@@ -36,6 +36,15 @@ DEFAULT_PROMPT_GPT4O_TRANSCRIBE = (
 SUPPORTED_MODELS = {"whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe"}
 
 
+def effective_prompt(model: str, prompt: str | None) -> str | None:
+    """Prompt efetivamente enviado à API: o configurado ou o padrão do modelo."""
+    if prompt is not None:
+        return prompt
+    if model == "gpt-4o-transcribe":
+        return DEFAULT_PROMPT_GPT4O_TRANSCRIBE
+    return None
+
+
 def _remove_hallucinations(text: str) -> str:
     for pattern in HALLUCINATION_PATTERNS:
         text = re.sub(pattern, "", text, flags=re.IGNORECASE)
@@ -49,11 +58,7 @@ class WhisperTranscriber(BaseTranscriber):
         self.client = AsyncOpenAI()
 
     def _effective_prompt(self) -> str | None:
-        if self.prompt is not None:
-            return self.prompt
-        if self.model == "gpt-4o-transcribe":
-            return DEFAULT_PROMPT_GPT4O_TRANSCRIBE
-        return None
+        return effective_prompt(self.model, self.prompt)
 
     async def transcribe(self, audio_path: Path) -> str:
         logger.debug(f"Transcribing {audio_path.name} with {self.model}")

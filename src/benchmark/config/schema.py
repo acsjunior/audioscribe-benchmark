@@ -18,6 +18,10 @@ class TranscriptionConfig(BaseModel):
     model: str = "whisper-1"
     transcription_prompt: str | None = None
     audio_preprocessing: Literal["demucs", "noisereduce", "deepfilternet"] | None = None
+    runs: int = Field(default=1, ge=1)
+    cache: bool = True
+    # Padrão: <pai de drive.audio_dir>/transcriptions (ex.: data/transcriptions)
+    cache_dir: str | None = None
 
 
 class RefinementConfig(BaseModel):
@@ -41,5 +45,6 @@ class ExperimentConfig(BaseModel):
     refinement: list[RefinementConfig] = Field(default_factory=list)
     metrics: list[str] = Field(default_factory=list)
     catalog_path: str = "data/catalogo.csv"
+    split: Literal["dev", "test", "all"] = "dev"
     drive: DriveConfig = Field(default_factory=DriveConfig)
     results_path: str = "results"

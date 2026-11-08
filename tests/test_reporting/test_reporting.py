@@ -3,7 +3,7 @@ import json
 
 from benchmark.models import ExperimentResult
 from benchmark.reporting.csv_reporter import write_csv
-from benchmark.reporting.html_reporter import _build_comparison, write_html
+from benchmark.reporting.html_reporter import _build_comparison, _build_ranking, write_html
 from benchmark.reporting.json_reporter import write_json
 
 
@@ -117,3 +117,43 @@ def test_build_comparison_refined_uses_refined_transcription():
 
     entry = comparison["cartola-as-rosas-nao-falam"]["entries"][0]
     assert entry["text"] == "As rosas não falam"
+
+
+# --- Rodadas ---
+
+def _with_run(result, run):
+    result.run = run
+    return result
+
+
+def test_write_csv_includes_split_and_run(tmp_path):
+    out = tmp_path / "results.csv"
+    write_csv([_with_run(make_result(), 1), _with_run(make_result(), 2)], out)
+
+    rows = list(csv.DictReader(out.read_text(encoding="utf-8").splitlines()))
+    assert [r["run"] for r in rows] == ["1", "2"]
+    assert rows[0]["split"] == "dev"
+
+
+def test_html_ranking_counts_unique_songs_with_runs(tmp_path):
+    results = [_with_run(make_result(), 1), _with_run(make_result(), 2)]
+    ranking = _build_ranking(results, ["wer"])
+
+    assert ranking[0]["num_songs"] == 1
+    assert ranking[0]["num_evaluations"] == 2
+
+
+def test_html_labels_runs_when_multiple(tmp_path):
+    out = tmp_path / "report.html"
+    write_html([_with_run(make_result(), 1), _with_run(make_result(), 2)], out, "exp")
+
+    content = out.read_text(encoding="utf-8")
+    assert "rodada 2" in content
+    assert "Rodadas: 2" in content
+
+
+def test_html_no_run_label_with_single_run(tmp_path):
+    out = tmp_path / "report.html"
+    write_html([make_result()], out, "exp")
+
+    assert "rodada 1" not in out.read_text(encoding="utf-8")

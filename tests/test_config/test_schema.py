@@ -88,3 +88,22 @@ def test_refinement_config_fields():
     )
     assert ref.provider == "google"
     assert ref.model == "gemini-1.5-pro"
+
+
+def test_runs_and_split_defaults():
+    config = ExperimentConfig(**{"experiment_name": "teste"})
+    assert config.transcription.runs == 1
+    assert config.transcription.cache is True
+    assert config.transcription.cache_dir is None
+    assert config.split == "dev"
+
+
+@pytest.mark.parametrize("runs", [0, -1])
+def test_runs_must_be_positive(runs):
+    with pytest.raises(Exception):
+        ExperimentConfig(**{"experiment_name": "teste", "transcription": {"runs": runs}})
+
+
+def test_invalid_split_raises():
+    with pytest.raises(Exception):
+        ExperimentConfig(**{"experiment_name": "teste", "split": "train"})
