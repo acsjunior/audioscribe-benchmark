@@ -95,6 +95,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "jiwer" },
     { name = "noisereduce" },
+    { name = "numpy" },
     { name = "openai" },
     { name = "pydantic" },
     { name = "python-dotenv" },
@@ -102,6 +103,7 @@ dependencies = [
     { name = "python-slugify" },
     { name = "pyyaml" },
     { name = "rich" },
+    { name = "scipy" },
     { name = "soundfile" },
 ]
 
@@ -131,6 +133,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.0.0" },
     { name = "jiwer", specifier = ">=3.0.0" },
     { name = "noisereduce", specifier = ">=3.0.3" },
+    { name = "numpy", specifier = ">=1.26.4" },
     { name = "openai", specifier = ">=1.0.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
@@ -138,6 +141,7 @@ requires-dist = [
     { name = "python-slugify", specifier = ">=8.0.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rich", specifier = ">=13.0.0" },
+    { name = "scipy", specifier = ">=1.17.1" },
     { name = "soundfile", specifier = ">=0.13.1" },
 ]
 

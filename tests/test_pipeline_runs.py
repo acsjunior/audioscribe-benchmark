@@ -221,3 +221,48 @@ async def test_default_split_is_dev(mock_cls, mock_catalog, tmp_path):
     await Pipeline(_config(tmp_path)).run()
 
     assert t.transcribe.call_count == 0
+
+
+# --- análise estatística ---
+
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+@patch("benchmark.pipeline.get_refiner")
+async def test_pipeline_writes_stats_json(mock_get_refiner, mock_cls, mock_catalog, tmp_path):
+    import json
+
+    mock_cls.return_value = _transcriber()
+    mock_catalog.return_value = [_song(tmp_path)]
+    refiner = MagicMock()
+    refiner.refine = AsyncMock(return_value=RefinementResult(refined_text="As rosas não falam"))
+    mock_get_refiner.return_value = refiner
+
+    prompt_file = tmp_path / "p.yaml"
+    prompt_file.write_text("name: p\nsystem: s\nuser: '{transcription}'\n", encoding="utf-8")
+    cfg = _config(tmp_path, runs=2)
+    cfg.refinement = [
+        RefinementConfig(provider="openai", model="gpt-4o", prompt_file=str(prompt_file))
+    ]
+    cfg.analysis.bootstrap_samples = 200
+
+    run_dir = await Pipeline(cfg).run()
+
+    stats = json.loads((run_dir / "stats.json").read_text(encoding="utf-8"))
+    assert stats["num_runs"] == 2
+    method = stats["metrics"]["wer"]["methods"][0]
+    assert method["num_evaluations"] == 2
+    assert "Análise Estatística" in (run_dir / "report.html").read_text(encoding="utf-8")
+
+
+@patch("benchmark.pipeline.analyze", side_effect=RuntimeError("boom"))
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_pipeline_survives_analysis_failure(mock_cls, mock_catalog, mock_analyze, tmp_path):
+    assert mock_analyze is not None
+    mock_cls.return_value = _transcriber()
+    mock_catalog.return_value = [_song(tmp_path)]
+
+    run_dir = await Pipeline(_config(tmp_path)).run()
+
+    assert (run_dir / "report.html").exists()
+    assert not (run_dir / "stats.json").exists()

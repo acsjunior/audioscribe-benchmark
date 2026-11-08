@@ -24,6 +24,8 @@ dependencies = [
     "soundfile>=0.13.1",
     "noisereduce>=3.0.3",
     "deepfilternet>=0.5.6",
+    "numpy>=1.26.4",
+    "scipy>=1.17.1",
 ]
 
 [project.scripts]

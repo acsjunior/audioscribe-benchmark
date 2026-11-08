@@ -37,6 +37,14 @@ class DriveConfig(BaseModel):
     audio_dir: str = "data/inputs"
 
 
+class AnalysisConfig(BaseModel):
+    bootstrap_samples: int = Field(default=10000, ge=100)
+    confidence: float = Field(default=0.95, gt=0.0, lt=1.0)
+    # Piora (na métrica) acima da qual uma avaliação conta como falha grave.
+    severe_failure_threshold: float = Field(default=0.2, gt=0.0)
+    seed: int = 0
+
+
 class ExperimentConfig(BaseModel):
     experiment_name: str
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
@@ -46,5 +54,6 @@ class ExperimentConfig(BaseModel):
     metrics: list[str] = Field(default_factory=list)
     catalog_path: str = "data/catalogo.csv"
     split: Literal["dev", "test", "all"] = "dev"
+    analysis: AnalysisConfig = Field(default_factory=AnalysisConfig)
     drive: DriveConfig = Field(default_factory=DriveConfig)
     results_path: str = "results"

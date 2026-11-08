@@ -15,6 +15,7 @@ from .refinement.base import BaseRefiner, PromptConfig
 from .reporting.csv_reporter import write_csv
 from .reporting.html_reporter import write_html
 from .reporting.json_reporter import write_json
+from .reporting.stats import analyze, write_stats_json
 from .transcription.cache import TranscriptionCache, file_sha256
 from .transcription.whisper import WhisperTranscriber, effective_prompt
 from .utils.retry import async_retry
@@ -267,7 +268,20 @@ class Pipeline:
         if all_results:
             write_csv(all_results, run_dir / "results.csv")
             write_json(all_results, run_dir / "results.json")
-            write_html(all_results, run_dir / "report.html", self.config.experiment_name)
+            analysis = None
+            try:
+                analysis = analyze(
+                    all_results, [m.name for m in self.metrics], self.config.analysis
+                )
+                write_stats_json(analysis, run_dir / "stats.json")
+            except Exception as e:
+                logger.warning(f"Análise estatística falhou: {e}")
+            write_html(
+                all_results,
+                run_dir / "report.html",
+                self.config.experiment_name,
+                analysis=analysis,
+            )
             logger.info(f"Resultados salvos em: {run_dir}")
         else:
             logger.warning("Nenhum resultado para salvar.")
