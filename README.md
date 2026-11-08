@@ -28,7 +28,9 @@ Para cada música do catálogo, o pipeline:
 
 1. **Obtém o áudio**: baixa o MP3 do Google Drive (ou usa a cópia local, se já existir)
 2. **Pré-processa** (opcional): isola a voz ou reduz o ruído do áudio
-3. **Transcreve**: envia o áudio para um modelo de transcrição da OpenAI
+3. **Transcreve**: envia o áudio para um modelo de transcrição da OpenAI, uma ou
+   várias vezes (rodadas), guardando as transcrições em cache para reaproveitar
+   entre experimentos
 4. **Refina** (opcional): pede a um ou mais LLMs que revisem a transcrição,
    cada um com o prompt configurado
 5. **Avalia**: compara cada versão com a letra de referência usando métricas de
@@ -37,6 +39,10 @@ Para cada música do catálogo, o pipeline:
 
 Toda execução inclui também um **baseline** (a transcrição sem nenhum
 refinamento), para medir o ganho ou a perda de cada estratégia.
+
+O catálogo pode separar músicas de **desenvolvimento** (para ajustar prompts e
+métodos) e de **teste** (para a avaliação final), evitando que os métodos sejam
+ajustados às mesmas músicas em que são avaliados.
 
 ### Componentes disponíveis
 
@@ -91,7 +97,9 @@ O passo a passo detalhado está no [MANUAL.md](MANUAL.md#32-google-drive--oauth2
 
 O arquivo `data/catalogo.csv` lista as músicas a avaliar. Cada linha traz os
 metadados da música (título, autoria, intérprete, ano), a **letra de referência**
-usada na avaliação, o nome do arquivo de áudio e o link do Google Drive.
+usada na avaliação, o nome do arquivo de áudio e o link do Google Drive. Uma
+coluna opcional `Split` marca cada música como `dev` (desenvolvimento) ou `test`
+(teste).
 
 ### 4. Experimento
 
@@ -105,6 +113,7 @@ transcription:
   provider: whisper
   model: gpt-4o-transcribe
   # audio_preprocessing: demucs   # opcional: demucs | noisereduce | deepfilternet
+  runs: 5                         # transcrições independentes por música
 
 refinement:                       # uma entrada por combinação LLM + prompt
   - provider: openai
@@ -117,6 +126,7 @@ refinement:                       # uma entrada por combinação LLM + prompt
 metrics: [wer, cer]
 
 catalog_path: data/catalogo.csv
+split: dev                        # dev | test | all
 drive:
   audio_dir: data/inputs
 ```

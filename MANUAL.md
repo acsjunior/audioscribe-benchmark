@@ -108,6 +108,10 @@ no Google Drive.
 | `URL` | URL de compartilhamento do Google Drive |
 | `Fonte` | URL da fonte da letra (ignorado) |
 | `Acesso` | Data de acesso à fonte (ignorado) |
+| `Split` | Opcional: `dev` (desenvolvimento) ou `test` (teste) — ver seção 4.4 |
+
+Colunas extras (por exemplo, dados de verificação de domínio público) são
+ignoradas pelo pipeline e podem ser acrescentadas livremente.
 
 ### 4.2 Ground truth (coluna `Letra`)
 
@@ -124,6 +128,24 @@ na coluna `Arquivo`.
 **Cache automático:** se o arquivo já existir em `data/inputs/`, o download é
 ignorado. Isso permite interromper e retomar experimentos sem rebaixar áudios já
 obtidos, e evita custos desnecessários de rede.
+
+### 4.4 Desenvolvimento e teste (coluna `Split`)
+
+A coluna `Split` separa as músicas em dois conjuntos:
+
+- **`dev` (desenvolvimento):** usadas à vontade para criar e ajustar prompts e métodos.
+- **`test` (teste):** reservadas para a avaliação final. Só devem ser rodadas uma
+  vez, com as configurações já escolhidas — ajustar um prompt olhando o resultado
+  delas torna a avaliação otimista.
+
+Regras:
+
+- Se a coluna não existir, todas as músicas são tratadas como `dev`.
+- Se existir, toda linha precisa ter `dev` ou `test`; valor vazio ou diferente
+  gera erro ao carregar o catálogo (para nenhuma música nova cair em `dev` por
+  esquecimento).
+- O experimento escolhe o conjunto com o campo `split` do YAML (seção 5.1). O
+  padrão é `dev`; para rodar o teste é preciso escrever `split: test` (ou `all`).
 
 ---
 
@@ -150,6 +172,9 @@ transcription:
   model: whisper-1    # whisper-1 | gpt-4o-transcribe | gpt-4o-mini-transcribe
   # transcription_prompt: "prompt opcional para contextualizar o Whisper"
   # audio_preprocessing: demucs  # demucs | noisereduce | deepfilternet (ver seção 5.3)
+  runs: 1             # transcrições independentes por música (ver seção 5.4)
+  cache: true         # reaproveita transcrições já feitas (padrão: true)
+  # cache_dir: data/transcriptions  # padrão: pasta "transcriptions" ao lado de audio_dir
 
 refinement:
   - provider: openai       # openai | anthropic | google
@@ -163,6 +188,7 @@ metrics:
   - bertscore
 
 catalog_path: data/catalogo.csv
+split: dev                 # dev | test | all — padrão: dev (ver seção 4.4)
 
 drive:
   credentials_path: credentials.json
@@ -219,7 +245,36 @@ transcription:
 > (noisereduce e deepfilternet de forma severa). Teste com um subconjunto antes
 > de rodar no dataset completo.
 
-### 5.4 Métricas disponíveis
+### 5.4 Rodadas e cache de transcrições
+
+A mesma configuração de transcrição pode produzir resultados bem diferentes de
+uma execução para outra — o modelo às vezes troca palavras, pula ou repete
+trechos. Para medir com confiança, cada música pode ser transcrita várias vezes:
+
+```yaml
+transcription:
+  model: gpt-4o-transcribe
+  runs: 5
+```
+
+- Cada rodada gera uma linha de baseline, e cada refinamento configurado é
+  aplicado à transcrição de **cada** rodada. As colunas `run` do CSV/JSON
+  identificam a rodada.
+- As transcrições ficam salvas em `data/transcriptions/`, separadas por modelo,
+  prompt de transcrição e pré-processamento. Um experimento novo com a mesma
+  configuração de transcrição **reaproveita** as transcrições salvas em vez de
+  chamar a API — assim, dois experimentos de refinamento comparam métodos sobre
+  exatamente as mesmas transcrições, e a transcrição não é paga de novo.
+- Aumentar `runs` (por exemplo, de 3 para 5) só transcreve as rodadas que faltam.
+- Se o arquivo de áudio mudar, as transcrições antigas daquela música são
+  ignoradas e refeitas.
+- Rodadas que falharem não são salvas e são refeitas na próxima execução.
+- Para forçar transcrições novas sem apagar o cache, use `cache: false`.
+
+> **Atenção:** o custo de refinamento cresce com o número de rodadas — com
+> `runs: 5` e 4 refinamentos, são 20 chamadas de LLM por música.
+
+### 5.5 Métricas disponíveis
 
 | Métrica | Descrição | Interpretação |
 |---|---|---|
@@ -231,7 +286,7 @@ transcription:
 > do cálculo, penalizando apenas diferenças de conteúdo lexical. Acentuação é
 > preservada — "nao" vs "não" ainda conta como erro.
 
-### 5.5 Exemplos de baterias de testes
+### 5.6 Exemplos de baterias de testes
 
 **Teste rápido (só baseline + um prompt):**
 ```yaml
@@ -442,15 +497,17 @@ Abra o `report.html` no navegador para visualizar:
 
 ### 8.2 Arquivo CSV
 
-Cada linha representa um experimento (uma música × uma combinação LLM + prompt).
-A linha com `refinement_provider` vazio é o **baseline** — a transcrição bruta do
-Whisper sem nenhum refinamento.
+Cada linha representa uma avaliação: uma música × uma rodada × uma combinação
+LLM + prompt. A linha com `refinement_provider` igual a `baseline` é a transcrição
+bruta, sem nenhum refinamento.
 
 Colunas principais:
 
 | Coluna | Descrição |
 |---|---|
 | `song_id` | Identificador único gerado por slugify: `{interpretacao}-{titulo}` |
+| `split` | Conjunto da música: `dev` ou `test` |
+| `run` | Rodada de transcrição (1 a `runs`) |
 | `titulo` | Título da música |
 | `autoria` | Compositor(es) |
 | `interpretacao` | Intérprete(s) |
