@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class LoggingConfig(BaseModel):
@@ -22,6 +22,14 @@ class TranscriptionConfig(BaseModel):
     cache: bool = True
     # Padrão: <pai de drive.audio_dir>/transcriptions (ex.: data/transcriptions)
     cache_dir: str | None = None
+    # Adiciona o método "consensus": a transcrição mais central entre as rodadas (exige runs >= 3)
+    consensus: bool = False
+
+    @model_validator(mode="after")
+    def _consensus_needs_runs(self) -> "TranscriptionConfig":
+        if self.consensus and self.runs < 3:
+            raise ValueError("transcription.consensus exige transcription.runs >= 3")
+        return self
 
 
 class RefinementConfig(BaseModel):

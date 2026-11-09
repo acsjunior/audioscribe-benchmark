@@ -266,3 +266,50 @@ async def test_pipeline_survives_analysis_failure(mock_cls, mock_catalog, mock_a
 
     assert (run_dir / "report.html").exists()
     assert not (run_dir / "stats.json").exists()
+
+
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_consensus_adds_medoid_method_per_run(mock_cls, mock_catalog, tmp_path):
+    outputs = iter(["as rosas não falam", "as rosas não falam", "bla bla bla bla bla"])
+    mock_cls.return_value = _transcriber(side_effect=lambda path: next(outputs))
+    mock_catalog.return_value = [_song(tmp_path)]
+
+    run_dir = await Pipeline(_config(tmp_path, runs=3, consensus=True)).run()
+
+    rows = _rows(run_dir)
+    consensus = [r for r in rows if r["refinement_provider"] == "consensus"]
+    assert [r["run"] for r in consensus] == ["1", "2", "3"]
+    assert all(r["refinement_model"] == "medoid" for r in consensus)
+    assert {r["wer"] for r in consensus} == {"0.0"}  # o outlier da rodada 3 não foi escolhido
+    baseline = [r for r in rows if r["refinement_provider"] == "baseline"]
+    assert len(baseline) == 3
+
+
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_consensus_skipped_when_runs_fail(mock_cls, mock_catalog, tmp_path):
+    calls = {"n": 0}
+
+    def flaky(path):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("falha")
+        return "as rosas nao falam"
+
+    mock_cls.return_value = _transcriber(side_effect=flaky)
+    mock_catalog.return_value = [_song(tmp_path)]
+    config = _config(tmp_path, runs=3, consensus=True)
+    config.retry.max_attempts = 1
+
+    run_dir = await Pipeline(config).run()
+
+    assert not [r for r in _rows(run_dir) if r["refinement_provider"] == "consensus"]
+
+
+def test_consensus_requires_three_runs():
+    with pytest.raises(ValueError, match="runs >= 3"):
+        ExperimentConfig(
+            experiment_name="x", metrics=["wer"], catalog_path="c.csv",
+            transcription={"runs": 2, "consensus": True},
+        )

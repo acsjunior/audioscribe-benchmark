@@ -28,6 +28,7 @@ transcription:
   #
   runs: 1      # transcrições independentes por música; o refinamento roda em cada uma
   cache: true  # reaproveita transcrições salvas em data/transcriptions/
+  # consensus: true  # adiciona o método "consensus" (medoide das rodadas); exige runs >= 3
 
 refinement:
   - provider: openai

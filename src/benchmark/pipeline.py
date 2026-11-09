@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .config.schema import ExperimentConfig
+from .consensus import MIN_RUNS, medoid
 from .dataset import load_catalog
 from .deep_filter import filter_noise
 from .gdrive import download_audio
@@ -173,6 +174,35 @@ class Pipeline:
             **defaults,
         )
 
+    def _consensus_results(
+        self, song: SongData, transcriptions: dict[int, str]
+    ) -> list[ExperimentResult]:
+        """Método "consensus": a transcrição mais central entre as rodadas da música.
+
+        O mesmo texto é registrado em cada rodada, para o pareamento com o baseline
+        (música × rodada) funcionar; o ganho por música é a média sobre as rodadas.
+        """
+        if len(transcriptions) < MIN_RUNS:
+            logger.warning(
+                f"  Consenso ignorado: {len(transcriptions)} rodada(s) válida(s), "
+                f"mínimo {MIN_RUNS}"
+            )
+            return []
+        chosen = medoid(transcriptions)
+        text = transcriptions[chosen]
+        logger.info(f"  Consenso: rodada {chosen} é a mais central")
+        metrics = self._compute_metrics(text, song.ground_truth)
+        return [
+            self._result(
+                song, run, transcriptions[run],
+                refinement_provider="consensus",
+                refinement_model="medoid",
+                refined_transcription=text,
+                metrics=dict(metrics),
+            )
+            for run in sorted(transcriptions)
+        ]
+
     async def run(self) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_dir = Path(self.config.results_path) / f"{self.config.experiment_name}_{timestamp}"
@@ -212,12 +242,14 @@ class Pipeline:
                 "ano": song.ano,
             }
 
+            transcriptions: dict[int, str] = {}
             for run in range(1, runs + 1):
                 transcription = await self._transcribe_run(
                     song, run, audio_path, audio_sha256, transcribe_fn
                 )
                 if transcription is None:
                     continue
+                transcriptions[run] = transcription
 
                 all_results.append(self._result(
                     song, run, transcription,
@@ -264,6 +296,9 @@ class Pipeline:
                             prompt_file=ref_config.prompt_file,
                             error=str(e),
                         ))
+
+            if self.config.transcription.consensus:
+                all_results.extend(self._consensus_results(song, transcriptions))
 
         if all_results:
             write_csv(all_results, run_dir / "results.csv")

@@ -46,5 +46,6 @@ class ExperimentResult:
     @property
     def experiment_label(self) -> str:
         if self.refinement_provider:
-            return f"{self.refinement_provider}/{self.refinement_model} [{self.prompt_name}]"
+            label = f"{self.refinement_provider}/{self.refinement_model}"
+            return f"{label} [{self.prompt_name}]" if self.prompt_name else label
         return "baseline (whisper only)"

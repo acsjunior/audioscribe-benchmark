@@ -282,6 +282,19 @@ transcription:
 > **Atenção:** o custo de refinamento cresce com o número de rodadas — com
 > `runs: 5` e 4 refinamentos, são 20 chamadas de LLM por música.
 
+**Transcrição de consenso.** Com `runs` ≥ 3, `consensus: true` adiciona o método
+`consensus/medoid`: entre as rodadas de cada música, usa-se a transcrição mais
+parecida com as demais (menor soma de distâncias de edição em palavras). Não chama
+API nem usa a letra, e o texto é sempre uma das transcrições originais. Ele é
+comparado com o baseline como qualquer outro método (seção 8.4): o ganho mostra
+quanto escolher a transcrição "central" melhora sobre uma rodada qualquer.
+
+```yaml
+transcription:
+  runs: 5
+  consensus: true
+```
+
 ### 5.5 Métricas disponíveis
 
 | Métrica | Descrição | Interpretação |

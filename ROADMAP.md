@@ -83,7 +83,7 @@ longa demais). Sai em `stats.json` (`errors`) e no `report.html`.
 
 ### Fase 2 — Métodos sem conferência
 
-**E5. Transcrição de consenso**
+**E5. Transcrição de consenso** — ✅ implementado (falta medir em dados reais, no E3)
 Entre as `n` transcrições, escolher a mais parecida com as demais (medoide). Não
 usa a letra de referência nem API; serve de método e de rascunho para o E7.
 

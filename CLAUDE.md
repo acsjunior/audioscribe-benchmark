@@ -231,6 +231,9 @@ data/transcriptions/<modelo>__<pré-processamento|original>__<p+hash8 do prompt|
 - Aumentar `runs` só transcreve as rodadas que faltam.
 - Propósito: comparar métodos de refinamento sobre exatamente as mesmas transcrições, e não pagar transcrição de novo a cada experimento.
 
+### Transcrição de consenso (E5)
+`consensus.py`: com `transcription.consensus: true` (exige `runs >= 3`, validado no schema), cada música ganha o método `consensus/medoid`: entre as `n` transcrições, a de menor soma de distâncias de edição em palavras (texto normalizado, `jiwer.process_words`) para as demais; empate → menor rodada. É uma *escolha*, nunca uma fusão, e não usa a letra nem API. O mesmo texto é registrado em cada rodada (para o pareamento música × rodada com o baseline), então o ganho por música é a média sobre as rodadas, mas `num_evaluations` e falhas graves contam `n` vezes. Se menos de 3 rodadas forem válidas na música, o consenso dela é ignorado (aviso no log). Aparece nas tabelas como método sem prompt (`consensus/medoid`).
+
 ### Split dev/test
 A coluna `Split` do catálogo separa as músicas de desenvolvimento (ajuste de prompts e métodos) das de teste (rodadas uma vez, no final, com tudo congelado). O YAML usa `split: dev` por padrão. Rodar o teste exige `split: test` (ou `all`) explicitamente, para evitar contaminação acidental. Ver `ROADMAP.md`.
 
