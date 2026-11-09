@@ -1,6 +1,6 @@
 # Protocolo do Estudo
 
-**Status:** rascunho (v0.3, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
+**Status:** rascunho (v0.4, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
 decisão antes das execuções oficiais. Quando todos estiverem resolvidos, o protocolo é
 congelado (versão 1.0, com data e commit). A partir daí, qualquer mudança é registrada
 na seção 13, com justificativa, e reportada no trabalho.
@@ -126,6 +126,24 @@ transcrita por causa do resultado.
 **Tamanho:** não é fixado de antemão. A base será enriquecida com o máximo de músicas
 possível, e o número final de músicas do teste é registrado no congelamento (seção 8),
 antes de qualquer execução no teste. Referência mínima: 32 músicas.
+
+**Poder estatístico (simulação preliminar).** `scripts/power.py` estima, por reamostragem,
+a probabilidade de detectar um efeito real em função do número de músicas no teste. Usa
+o *formato* dos ganhos da fase exploratória (revisão só com texto, 4 prompts, 28 músicas,
+1 rodada; 21% de empates exatos mantidos) e varia o ganho típico δ entre as músicas
+alteradas. Música `alcides-gerardi-antonico` fora do formato (era o filtro de conteúdo,
+hoje tratado como erro). Número aproximado de músicas para **80% de poder**:
+
+| δ (ganho típico) | H1 (α = 0,05) | H2/H3 (α = 0,025, Holm) | H1 com falhas como a do filtro |
+|---|---|---|---|
+| 0,01 | ~85 | ~100 | > 120 |
+| 0,02 | ~40 | ~50 | ~55 |
+| 0,04 | ~25 | ~30 | ~35 |
+
+Leitura: com ~40 músicas, só efeitos de 0,02 ou mais são detectados com segurança;
+efeitos de 0,01 pedem ~85–100. A simulação é conservadora no ruído (rodadas únicas; com
+várias rodadas por música ele diminui) e assume para H2/H3 o mesmo δ de H1, o que é
+otimista. **Refazer com os ganhos da conferência (E7) no dev antes do congelamento.**
 
 **[EM DISCUSSÃO]** Com a base crescendo, rever se todas as músicas novas vão para o teste
 ou se parte reforça o dev, e se o limite de 3 por intérprete descarta músicas demais.
@@ -328,14 +346,16 @@ exploratório.
 1. o Wilcoxon-Pratt rejeitar a hipótese nula a α = 0,05 (para H1, sem ajuste; para H2
    e H3, ajustado por Holm, depois de H1 rejeitada);
 2. o limite inferior do IC 95% do ganho de Hodges–Lehmann for maior que zero;
-3. a taxa de falhas graves (avaliações em que o WER piora mais de 0,2 em relação ao
-   rascunho) for no máximo **[PENDENTE: proposta 5%]**. A média esconde falhas raras e
-   catastróficas; este critério impede que um método que melhora pouco quase sempre e
-   destrói algumas músicas seja declarado bem-sucedido.
+3. **[EM DISCUSSÃO]** proteção contra falhas graves. A proposta inicial era um teto
+   fixo para a taxa de falhas graves (avaliações em que o WER piora mais de 0,2 em
+   relação ao rascunho), por exemplo 5%. A simulação de poder mostrou que um teto fixo
+   perto da taxa real vira cara ou coroa: com taxa real de ~5,6%, o critério passa em
+   ~50% das amostras **independentemente** do número de músicas. Alternativa proposta:
+   (a) o IC 95% do ganho no WER do corpus **não pode estar todo abaixo de zero** (sem
+   dano líquido demonstrado) e (b) a taxa de falhas graves é relatada com IC exato
+   (Clopper–Pearson), sem ser critério de corte.
 
-Também se relata a diferença no WER do corpus com IC: se ela for negativa com IC todo
-abaixo de zero, o método aumenta o total de erros mesmo melhorando a música típica, e
-isso é reportado junto ao resultado de H1.
+A diferença no WER do corpus é sempre relatada com IC junto ao resultado de H1.
 
 Também é relatado se o ganho de Hodges–Lehmann supera o **ruído entre rodadas** do baseline (desvio
 médio do WER entre rodadas da mesma música), para dar escala ao efeito.
@@ -451,5 +471,6 @@ causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio n�
 | Versão | Data | Alteração | Motivo |
 |---|---|---|---|
 | 0.1 | 09/11/2026 | Rascunho inicial | — |
+| 0.4 | 09/11/2026 | Simulação de poder preliminar (3.3); critério de falhas graves revisto, em discussão (7.3) | Teto fixo de falhas graves se mostrou instável na simulação |
 | 0.3 | 09/11/2026 | Análise estatística decidida (7.3): Wilcoxon-Pratt + Hodges–Lehmann, WER do corpus como proteção contra dano, teste do sinal descritivo, sequência fixa H1 → {H2, H3 com Holm}, BH nas exploratórias | Discussão da adequação dos testes ao formato dos dados |
 | 0.2 | 09/11/2026 | H3 explicada; fração cantada medida no dev (3.2); tamanho do teste em aberto (3.3); exclusão por trechos duvidosos após a audição, antes da transcrição (4.1, 4.3); áudio anônimo (5, 10); distribuição completa no relatório (7.5); teste estatístico em discussão (7.3) | Revisão do rascunho |

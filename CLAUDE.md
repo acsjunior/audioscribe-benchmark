@@ -261,6 +261,9 @@ Bloco `verification:` (lista; uma entrada por variante): `provider` (`openai-aud
 ### Fração cantada
 `scripts/sung_fraction.py <mp3s>`: estimativa da fração da duração com voz (critério de inclusão, PROTOCOLO 3.2), a partir do `*_vocals.wav` do demucs (gerado se faltar): RMS em janelas de 50 ms, limiar p95 − 20 dB (mostra também 15 e 25), mediana 0,5 s, fecha pausas < 1 s, remove ilhas < 0,5 s. No dev: mediana 66%, mín 34%.
 
+### Simulação de poder
+`scripts/power.py <results.json> [--methods ...] [--effects 0.01 0.02 0.04] [--sizes ...] [--exclude-songs ...]`: poder por número de músicas, por reamostragem. Usa o formato dos ganhos por música de métodos medidos (empates exatos mantidos na proporção observada; não nulos centrados no HL de cada método) e soma δ (ganho típico entre músicas alteradas). Critérios: H1 (Wilcoxon-Pratt p < 0,05), H1 + teto de falhas graves, H2/H3 (p < 0,025). Resultados preliminares no PROTOCOLO 3.3; refazer com os ganhos do E7 no dev.
+
 ### Split dev/test
 A coluna `Split` do catálogo separa as músicas de desenvolvimento (ajuste de prompts e métodos) das de teste (rodadas uma vez, no final, com tudo congelado). O YAML usa `split: dev` por padrão. Rodar o teste exige `split: test` (ou `all`) explicitamente, para evitar contaminação acidental. Ver `ROADMAP.md`.
 
