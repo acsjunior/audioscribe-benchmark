@@ -56,6 +56,10 @@ médio e mediano com intervalo de confiança por bootstrap sobre as músicas, em
 quantas músicas melhorou/empatou/piorou, Wilcoxon e taxa de falhas graves; no
 baseline, o ruído entre rodadas. Sai em `stats.json` e no `report.html`, e o
 comando `benchmark analyze` refaz a análise de resultados existentes.
+Revisado com o E0: Wilcoxon com zeros pelo método de Pratt, estimativa de
+Hodges–Lehmann, teste do sinal, WER do corpus com bootstrap pareado, p ajustado por
+Holm/BH e o comando `benchmark confirm` para as hipóteses confirmatórias em sequência
+fixa (PROTOCOLO 7.3).
 
 > Na reanálise dos resultados exploratórios, a "piora" da revisão com LLM veio
 > de uma única música (`alcides-gerardi-antonico`, piora de ~0,7–0,86 em todos os

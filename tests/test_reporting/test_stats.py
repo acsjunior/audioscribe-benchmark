@@ -320,3 +320,92 @@ def test_distribution_summary():
     )
     assert distribution(np.array([]))["mean"] is None
     assert distribution(np.array([0.2]))["std"] is None
+
+
+# --- testes e estimativas adotados no protocolo (seção 7.3) ---
+
+def test_hodges_lehmann_is_median_of_walsh_averages():
+    from benchmark.reporting.stats import hodges_lehmann
+
+    # médias de Walsh de [0, 1, 10]: 0, 0.5, 5, 1, 5.5, 10 → mediana 5.0... (6 valores)
+    assert hodges_lehmann(np.array([0.0, 1.0, 10.0])) == pytest.approx(np.median(
+        [0.0, 0.5, 5.0, 1.0, 5.5, 10.0]
+    ))
+    batch = np.array([[0.0, 1.0, 10.0], [1.0, 1.0, 1.0]])
+    assert hodges_lehmann(batch, axis=1) == pytest.approx([3.0, 1.0])
+
+
+def test_wilcoxon_pratt_keeps_zeros_and_is_more_conservative():
+    from scipy import stats as st
+
+    from benchmark.reporting.stats import wilcoxon_p
+
+    gains = np.array([0.01] * 8 + [0.0] * 10 + [-0.005])
+    dropped = st.wilcoxon(gains[gains != 0]).pvalue
+    assert wilcoxon_p(gains) > dropped  # descartar os empates exagera a evidência
+    assert wilcoxon_p(np.zeros(5)) is None
+
+
+def test_sign_test():
+    from benchmark.reporting.stats import sign_test_p
+
+    assert sign_test_p(0, 0) is None
+    assert sign_test_p(5, 5) == pytest.approx(1.0)
+    assert sign_test_p(10, 0) == pytest.approx(2 * 0.5**10)
+
+
+def test_holm_and_bh_adjustments():
+    from benchmark.reporting.stats import adjust_bh, adjust_holm
+
+    p = [0.01, 0.04, None, 0.03]
+    # Holm: ordenados 0.01, 0.03, 0.04 → 0.03, 0.06, max(0.06, 0.04) = 0.06
+    assert adjust_holm(p) == pytest.approx([0.03, 0.06, None, 0.06])
+    # BH: 0.04*3/3=0.04; 0.03*3/2=0.045→min(0.04)=0.04; 0.01*3/1=0.03
+    assert adjust_bh(p) == pytest.approx([0.03, 0.04, None, 0.04])
+
+
+def test_methods_get_hl_sign_test_and_adjusted_p():
+    baselines = {f"s{i}": [0.30] for i in range(10)}
+    methods = {f"s{i}": [0.28] for i in range(10)}
+    m = method(analyze(dataset(baselines, methods), ["wer"], CONFIG))
+    assert m["gain_hl"] == pytest.approx(0.02)
+    assert m["gain_hl_sig"] == 1
+    assert m["sign_test_p"] == pytest.approx(2 * 0.5**10)
+    assert m["wilcoxon_p_holm"] == pytest.approx(m["wilcoxon_p"])  # um só método
+
+
+def _text_row(song, text, truth, provider=None):
+    r = make(song, 1, 0.0, provider=provider)
+    r.ground_truth = truth
+    if provider:
+        r.refined_transcription = text
+    else:
+        r.whisper_transcription = text
+    return r
+
+
+def test_corpus_wer_sees_catastrophic_failure_that_typical_gain_hides():
+    truth = " ".join(f"w{i}" for i in range(20))
+    one_error = truth.replace("w3", "x")
+    rows = []
+    for i in range(9):  # 9 músicas: baseline com 2 erros, método com 1
+        two = one_error.replace("w5", "y")
+        rows += [_text_row(f"s{i}", two, truth), _text_row(f"s{i}", one_error, truth, "openai")]
+    rows += [_text_row("bad", truth, truth), _text_row("bad", "w0", truth, "openai")]
+    for r in rows:  # métricas coerentes com os textos
+        from benchmark.reporting.errors import diagnose
+        r.metrics = {"wer": diagnose(r.evaluated_transcription, r.ground_truth)["wer"]}
+
+    m = method(analyze(rows, ["wer"], CONFIG))
+    assert m["gain_hl"] > 0  # música típica melhora
+    assert m["corpus"]["gain"] < 0  # mas o total de erros aumenta
+    assert m["corpus"]["baseline_wer"] == pytest.approx(18 / 200)
+    assert m["corpus"]["method_wer"] == pytest.approx((9 + 19) / 200)
+
+
+def test_corpus_only_for_wer():
+    baselines = {f"s{i}": [0.9] for i in range(3)}
+    methods = {f"s{i}": [0.95] for i in range(3)}
+    m = method(analyze(dataset(baselines, methods, metric="bertscore"), ["bertscore"], CONFIG),
+               metric="bertscore")
+    assert m["corpus"] is None

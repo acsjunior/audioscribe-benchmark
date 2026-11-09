@@ -1,9 +1,9 @@
 # Protocolo do Estudo
 
-**Status:** rascunho (v0.2, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
+**Status:** rascunho (v0.3, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
 decisão antes das execuções oficiais. Quando todos estiverem resolvidos, o protocolo é
 congelado (versão 1.0, com data e commit). A partir daí, qualquer mudança é registrada
-na seção 12, com justificativa, e reportada no trabalho.
+na seção 13, com justificativa, e reportada no trabalho.
 
 Este documento é a metodologia do estudo. O [ROADMAP](ROADMAP.md) diz o que foi
 construído, e o [MANUAL](MANUAL.md) diz como usar a ferramenta.
@@ -266,36 +266,90 @@ hífen: "corda-bamba" vira "corda bamba"); espaços e quebras de linha colapsado
 
 ### 7.3 Teste das hipóteses
 
-**[EM DISCUSSÃO]** Escolha do teste estatístico e da correção para múltiplas
-comparações (proposta inicial: Wilcoxon e Holm). A decisão, com a justificativa, entra
-aqui.
+**Formato esperado dos dados.** Os ganhos por música são muito assimétricos: na fase
+exploratória (revisão `minimalist`, 28 músicas), média −0,011, mediana +0,015, Q1 0,000,
+Q3 +0,028, mínimo −0,801. Há ganhos pequenos e positivos, muitos empates exatos e falhas
+catastróficas raras. Os métodos abaixo foram escolhidos para esse formato.
+
+**Teste principal: Wilcoxon de postos sinalizados**, bilateral, sobre os ganhos por
+música.
+
+- *Por que não o t pareado*: supõe diferenças aproximadamente normais; com assimetria e
+  valores extremos, perde validade e poder.
+- *Por que não só o teste do sinal*: não usa a magnitude dos ganhos e tem menos poder;
+  é relatado como medida descritiva (vitórias × derrotas, binomial exato).
+- *Zeros pelo método de Pratt* (1959): revisões que não mudam nada geram empates exatos.
+  Descartá-los (método original de Wilcoxon) torna o teste otimista; Pratt os mantém na
+  ordenação.
+- *Hipótese nula*: a distribuição dos ganhos é simétrica em torno de zero. O Wilcoxon não
+  testa a mediana simples; a estimativa que corresponde a ele é a de Hodges–Lehmann.
+
+**Estimativa principal: Hodges–Lehmann** (Hodges & Lehmann, 1963) — a mediana das médias
+de Walsh (gᵢ + gⱼ)/2, i ≤ j — com IC 95% por bootstrap percentil sobre as músicas (10.000
+reamostragens, semente 0). A mediana simples e a média também são relatadas.
+
+**Proteção contra dano: WER do corpus.** Os métodos acima são robustos justamente por
+não olharem o tamanho dos valores extremos — e uma falha catastrófica é um dano real.
+Por isso, como medida secundária obrigatória, relata-se a diferença no **WER do corpus**
+(erros totais ÷ palavras totais da letra, convenção da área de reconhecimento de fala),
+com IC por bootstrap pareado sobre músicas e probabilidade de melhora (Bisani & Ney,
+2004). Na reanálise exploratória, a revisão `minimalist` tinha ganho típico positivo
+(HL +0,015, IC [+0,006; +0,024]) e WER do corpus *pior* (−0,011, IC [−0,066; +0,021]),
+por causa de uma única falha: as duas medidas contam histórias diferentes e ambas
+importam.
+
+**Alternativas consideradas e descartadas como análise principal:** permutação pareada
+da média (exata, mas a média é sensível a falhas extremas: pouco poder); modelo misto
+sobre a contagem de erros com efeito aleatório de música (o mais completo, mas com
+suposições delicadas sobre a contagem — inserções podem passar do número de palavras — e
+difícil de comunicar). Podem entrar como análises de sensibilidade.
+
+**Comparações múltiplas: sequência fixa (gatekeeping).** H1 é testada com α = 0,05
+inteiro. Só se H1 for rejeitada, H2 e H3 são testadas, com correção de **Holm** (1979)
+entre as duas, a α = 0,05. Esse procedimento controla a taxa de erro do conjunto (FWER)
+como Holm nas três hipóteses, mas dá à pergunta principal o α inteiro — e corresponde à
+lógica do estudo, em que H2 e H3 só fazem sentido se H1 for confirmada.
+
+- *Por que não Bonferroni*: válido, mas é dominado por Holm (nunca rejeita mais).
+- *Por que não Hochberg/Hommel*: mais poder, mas exigem justificar dependência positiva
+  entre os testes.
+- *Por que não Benjamini–Hochberg*: controla a proporção de falsas descobertas, adequado
+  a muitos testes exploratórios, não a três confirmatórios. É usado nas **exploratórias**,
+  cujos p-valores saem ajustados por BH e rotulados como exploratórios.
+
+**Implementação:** as hipóteses confirmatórias são declaradas num YAML (métodos, arquivos
+de resultado, α, ordem) e testadas por `benchmark confirm` (`reporting/contrasts.py`).
+O YAML faz parte do congelamento do protocolo (seção 8). Nos relatórios de cada execução
+(`stats.json`), os p-valores vêm ajustados por Holm e por BH entre os métodos, para uso
+exploratório.
 
 **Critério de sucesso (H1):** a hipótese é confirmada se, ao mesmo tempo:
 
-1. o teste escolhido acima rejeitar a hipótese nula, já com a correção para
-   múltiplas comparações, a α = 0,05;
-2. o limite inferior do IC 95% do efeito estimado for maior que zero;
+1. o Wilcoxon-Pratt rejeitar a hipótese nula a α = 0,05 (para H1, sem ajuste; para H2
+   e H3, ajustado por Holm, depois de H1 rejeitada);
+2. o limite inferior do IC 95% do ganho de Hodges–Lehmann for maior que zero;
 3. a taxa de falhas graves (avaliações em que o WER piora mais de 0,2 em relação ao
    rascunho) for no máximo **[PENDENTE: proposta 5%]**. A média esconde falhas raras e
    catastróficas; este critério impede que um método que melhora pouco quase sempre e
    destrói algumas músicas seja declarado bem-sucedido.
 
-> Nota de implementação: a correção de Holm ainda não está no código
-> (`reporting/stats.py` reporta p-valores sem correção). Precisa ser acrescentada antes
-> da execução no teste, ou aplicada à mão sobre os três p-valores.
+Também se relata a diferença no WER do corpus com IC: se ela for negativa com IC todo
+abaixo de zero, o método aumenta o total de erros mesmo melhorando a música típica, e
+isso é reportado junto ao resultado de H1.
 
-Também é relatado se o ganho mediano supera o **ruído entre rodadas** do baseline (desvio
+Também é relatado se o ganho de Hodges–Lehmann supera o **ruído entre rodadas** do baseline (desvio
 médio do WER entre rodadas da mesma música), para dar escala ao efeito.
 
-**[PENDENTE]** Tamanho mínimo de efeito com relevância prática (proposta: ganho mediano
-de 0,02 de WER, cerca de 3 palavras numa letra mediana de 157 palavras).
+**[PENDENTE]** Tamanho mínimo de efeito com relevância prática (proposta: ganho de
+Hodges–Lehmann de 0,02 de WER, cerca de 3 palavras numa letra mediana de 157 palavras).
 
 ### 7.4 Falhas e dados ausentes
 
 - **Bloqueio do provedor** (filtro de conteúdo/recitação) e **resposta mal formada**:
   a avaliação sai da análise pareada e é contada como falha do método. A taxa de falha
   por método é relatada junto ao ganho. **Análise de sensibilidade:** repetir H1
-  contando cada falha como ganho zero (o método devolveria o rascunho).
+  contando cada falha como o rascunho (ganho zero naquela rodada): `failures: draft` no
+  YAML de `benchmark confirm`.
 - **Falha de transcrição** numa rodada: a rodada fica sem baseline e sai de todas as
   comparações. Se uma música tiver menos de 3 rodadas válidas, ela é relatada e
   excluída das comparações que dependem de consenso.
@@ -307,7 +361,9 @@ Para cada método, sobre as músicas:
 
 - **distribuição** do WER e do ganho: média, desvio padrão, mínimo, Q1, mediana (Q2),
   Q3 e máximo;
-- ganho médio e mediano com IC, vitórias / empates / derrotas, p-valor;
+- ganho típico (Hodges–Lehmann) e ganho médio com IC; vitórias / empates / derrotas com
+  teste do sinal; Wilcoxon-Pratt com p ajustado (Holm e BH);
+- diferença no WER do corpus com IC e probabilidade de melhora;
 - falhas graves, falhas do provedor e piores casos. Os
 resultados do dev são relatados à parte e rotulados como desenvolvimento.
 
@@ -320,11 +376,11 @@ resultados do dev são relatados à parte e rotulados como desenvolvimento.
 3. **Piloto do E7, no dev**: 3 músicas, ajuste do prompt de conferência.
 4. **Bateria no dev**: todos os métodos e variantes (seção 5). Escolha, **no dev**, da
    configuração de cada hipótese:
-   - conferência: a variante com maior ganho mediano no dev;
+   - conferência: a variante com maior ganho de Hodges–Lehmann no dev;
    - controle sem áudio e transcrição direta: a mesma configuração, só mudando o fator
      testado.
-5. **Congelamento**: protocolo v1.0, configurações, prompts, versões de modelo e commit
-   registrados.
+5. **Congelamento**: protocolo v1.0, configurações, prompts, versões de modelo, commit e
+   o YAML das hipóteses confirmatórias (`benchmark confirm`) registrados.
 6. **Execução única no teste**: `split: test`, configurações congeladas. Nada é ajustado
    depois.
 
@@ -376,9 +432,24 @@ entram nas análises confirmatórias. Principais achados: grande variação entr
 mesma configuração; a média enganava por uma única falha (`alcides-gerardi-antonico`,
 causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio não ajudou.
 
-## 12. Registro de alterações do protocolo
+## 12. Referências
+
+- Bisani, M.; Ney, H. (2004). Bootstrap estimates for confidence intervals in ASR
+  performance evaluation. *ICASSP*.
+- Benjamini, Y.; Hochberg, Y. (1995). Controlling the false discovery rate. *Journal of
+  the Royal Statistical Society B*.
+- Hodges, J. L.; Lehmann, E. L. (1963). Estimates of location based on rank tests.
+  *Annals of Mathematical Statistics*.
+- Holm, S. (1979). A simple sequentially rejective multiple test procedure.
+  *Scandinavian Journal of Statistics*.
+- Pratt, J. W. (1959). Remarks on zeros and ties in the Wilcoxon signed rank procedures.
+  *Journal of the American Statistical Association*.
+- Wilcoxon, F. (1945). Individual comparisons by ranking methods. *Biometrics Bulletin*.
+
+## 13. Registro de alterações do protocolo
 
 | Versão | Data | Alteração | Motivo |
 |---|---|---|---|
 | 0.1 | 09/11/2026 | Rascunho inicial | — |
+| 0.3 | 09/11/2026 | Análise estatística decidida (7.3): Wilcoxon-Pratt + Hodges–Lehmann, WER do corpus como proteção contra dano, teste do sinal descritivo, sequência fixa H1 → {H2, H3 com Holm}, BH nas exploratórias | Discussão da adequação dos testes ao formato dos dados |
 | 0.2 | 09/11/2026 | H3 explicada; fração cantada medida no dev (3.2); tamanho do teste em aberto (3.3); exclusão por trechos duvidosos após a audição, antes da transcrição (4.1, 4.3); áudio anônimo (5, 10); distribuição completa no relatório (7.5); teste estatístico em discussão (7.3) | Revisão do rascunho |

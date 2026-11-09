@@ -104,6 +104,7 @@ audioscribe-benchmark/
 │       │   ├── stats.py          # analyze(): análise pareada contra o baseline (E2)
 │       │   ├── errors.py         # analyze_errors(): sub/omissão/inserção e alertas (E4)
 │       │   ├── edits.py          # analyze_edits(): falhas, precisão por alteração, reescritas (E7)
+│       │   ├── contrasts.py      # run_contrasts(): hipóteses confirmatórias (benchmark confirm)
 │       │   └── html_reporter.py  # relatório HTML: ranking, análise estatística, comparações
 │       └── utils/
 │           ├── __init__.py
@@ -283,12 +284,15 @@ Cada métrica implementa `BaseMetric` e é registrada em `METRIC_REGISTRY`. Mét
 
 - **Ganho** = `baseline - método` (WER/CER) ou `método - baseline` (BERTScore; `higher_is_better()` = nome contém "score"). Positivo sempre é melhora.
 - **Unidade de análise = música**: o ganho por música é a média do ganho nas rodadas, porque rodadas da mesma música não são independentes.
-- Por método: ganho médio e mediano, cada um com IC por bootstrap percentil (reamostrando músicas; `seed` fixo → determinístico), melhorou/empatou/piorou, p-valor de Wilcoxon (empates descartados; **sem correção para múltiplas comparações**) e falhas graves.
+- Por método: ganho médio, mediano e **Hodges–Lehmann** (`gain_hl`, mediana das médias de Walsh; a estimativa que corresponde ao Wilcoxon), cada um com IC por bootstrap percentil (reamostrando músicas; `seed` fixo → determinístico); melhorou/empatou/piorou com **teste do sinal** (`sign_test_p`, binomial exato); **Wilcoxon bilateral com zeros pelo método de Pratt** (`wilcoxon_p`; antes os empates eram descartados, o que tornava o teste otimista) e ajustes entre os métodos da métrica (`wilcoxon_p_holm`, `wilcoxon_p_bh`, uso exploratório); falhas graves. Métodos ordenados por `gain_hl`.
+- **WER do corpus** (`corpus`, só na métrica `wer`): erros totais ÷ palavras totais (recalculados dos textos via `errors.diagnose`, média das rodadas por música), ganho com IC por bootstrap pareado sobre músicas e `prob_improvement` (Bisani & Ney, 2004). Enxerga falhas catastróficas que o ganho típico ignora — nos dados exploratórios, `minimalist` tem HL +0,015 e corpus −0,011.
+- Escolha dos testes fundamentada no PROTOCOLO 7.3.
 - **Falha grave** = avaliação (música × rodada) com piora maior que `analysis.severe_failure_threshold` (padrão 0,2) — a revisão com LLM costuma melhorar quase todas as músicas e destruir algumas; a média esconde isso, a mediana e a taxa de falhas graves não. `worst_cases` lista as 3 piores.
 - `distribution` (baseline e métodos) e `gain_distribution` (métodos): média, desvio padrão, mín, Q1, mediana, Q3, máx sobre as médias por música; tabela de distribuição no HTML.
 - Baseline: média, mediana, desvio entre músicas e `mean_std_between_runs` (desvio médio entre rodadas de uma mesma música, o "ruído" da transcrição; `null` com 1 rodada).
-- Métodos saem ordenados pelo ganho mediano. Avaliações com erro ou métrica nula e linhas sem baseline pareado são ignoradas.
+- Avaliações com erro ou métrica nula e linhas sem baseline pareado são ignoradas.
 - Configuração no YAML: bloco `analysis` (`bootstrap_samples`, `confidence`, `seed`, `severe_failure_threshold`, `length_ratio_min`, `length_ratio_max`). Se a análise falhar, o pipeline registra um aviso e ainda grava CSV/JSON/HTML.
+- `benchmark confirm <hipoteses.yaml>` testa as hipóteses confirmatórias (ver abaixo).
 - `benchmark analyze <results.json>` refaz `stats.json` e `report.html` a partir de resultados já existentes (inclusive de execuções antigas, sem `run`/`split`).
 
 ### Diagnóstico de Erros
@@ -300,6 +304,9 @@ Cada métrica implementa `BaseMetric` e é registrada em `METRIC_REGISTRY`. Mét
 
 ### Respostas bloqueadas
 `BlockedResponseError` (em `refinement/base.py`) é levantado quando o provedor bloqueia a resposta: OpenAI `finish_reason=content_filter`, Anthropic `stop_reason=refusal`, Google `SAFETY/RECITATION/BLOCKLIST/PROHIBITED_CONTENT/SPII`. É `NonRetryableError` (`utils/retry.py`): com temperatura 0 o bloqueio se repete, então não há retry. Antes disso a resposta parcial era avaliada como se fosse a revisão — foi a causa da falha de `alcides-gerardi-antonico` na fase exploratória (gpt-4o, filtro de conteúdo/recitação cortava a saída em ~18 palavras; reproduzido 3/3 com `minimalist`).
+
+### Hipóteses confirmatórias (`benchmark confirm`)
+`reporting/contrasts.py`: um YAML declara contrastes (`reference`/`treatment` = `{results: <results.json>, method: <rótulo do relatório ou "baseline">}`), `alpha`, `metric`, `failures` (`exclude` | `draft`: falha vira o baseline da mesma música e rodada, análise de sensibilidade) e `analysis`. Pareamento **por música** (média das rodadas de cada lado), então os dois lados podem vir de execuções diferentes (ex.: conferência vs. transcrição direta do E6). **Sequência fixa**: contrastes sem `after` = primeira família (Holm entre eles); `after: X` (X da primeira família) = família testada com Holm só se X for rejeitado, senão `tested: false`. Mesmas medidas do `stats.json` (HL + IC, Wilcoxon-Pratt, sinal, corpus, distribuição). Saída: `<yaml>.json` e resumo no terminal.
 
 ### Prompts como Arquivos Externos
 Prompts definidos em arquivos YAML em `prompts/`. O código nunca hardcoda strings de prompt. Cada experimento registra o caminho e nome do prompt usado para rastreabilidade total.

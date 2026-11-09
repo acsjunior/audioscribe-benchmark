@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from .config import load_config
 from .config.schema import AnalysisConfig
 from .pipeline import Pipeline
+from .reporting.contrasts import load_contrasts, run_contrasts, write_contrasts_json
 from .reporting.html_reporter import write_html
 from .reporting.json_reporter import read_json
 from .reporting.stats import analyze as run_analysis
@@ -81,6 +82,39 @@ def analyze(results_json: Path, output: Path | None, severe_threshold: float, se
     write_stats_json(analysis, out_dir / "stats.json")
     write_html(results, out_dir / "report.html", results_json.parent.name, analysis=analysis)
     click.echo(f"Análise salva em: {out_dir}")
+
+
+@cli.command()
+@click.argument("contrasts_yaml", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option(
+    "--output", "-o",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Arquivo JSON de saída (padrão: <yaml>.json ao lado do YAML).",
+)
+def confirm(contrasts_yaml: Path, output: Path | None) -> None:
+    """Testa as hipóteses confirmatórias declaradas num YAML (sequência fixa + Holm)."""
+    try:
+        result = run_contrasts(load_contrasts(contrasts_yaml))
+    except ValueError as e:
+        raise click.ClickException(str(e)) from e
+
+    out = output or contrasts_yaml.with_suffix(".json")
+    write_contrasts_json(result, out)
+    for c in result["contrasts"]:
+        ci = c["gain_hl_ci"]
+        ci_txt = f"[{ci[0]:+.4f}; {ci[1]:+.4f}]" if ci else "—"
+        if not c["tested"]:
+            verdict = f"não testada (portão {c['after']} fechado)"
+        else:
+            p = c["wilcoxon_p_adjusted"]
+            p_txt = "—" if p is None else f"{p:.4f}"
+            verdict = f"p ajustado {p_txt} → {'REJEITA H0' if c['rejected'] else 'não rejeita'}"
+        click.echo(
+            f"{c['name']}: ganho HL {c['gain_hl']:+.4f} {ci_txt} · "
+            f"{c['wins']}/{c['ties']}/{c['losses']} · {c['num_songs']} músicas · {verdict}"
+        )
+    click.echo(f"Resultado salvo em: {out}")
 
 
 def main() -> None:

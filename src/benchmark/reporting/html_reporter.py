@@ -87,8 +87,13 @@ _TEMPLATE = """<!DOCTYPE html>
     sobre as músicas; em verde/vermelho, quando o intervalo exclui o zero.
     <strong>Falha grave</strong>: avaliação em que o método piora a métrica em mais de
     {{ "%.2f" | format(analysis.settings.severe_failure_threshold) }} em relação ao baseline.
-    O p-valor é do teste de Wilcoxon sobre os ganhos por música e <em>não</em> é corrigido
-    para múltiplas comparações — com muitos métodos, prefira os intervalos.
+    <strong>Ganho típico (HL)</strong>: estimativa de Hodges–Lehmann, a que corresponde ao
+    teste de Wilcoxon (postos sinalizados, zeros pelo método de Pratt, bilateral); ao lado,
+    o p-valor ajustado por Holm entre os métodos desta tabela. O teste do sinal acompanha
+    melhorou/empatou/piorou. <strong>Δ WER do corpus</strong>: erros totais ÷ palavras
+    totais, com bootstrap pareado — ao contrário do ganho típico, enxerga o tamanho de uma
+    falha catastrófica. Estas comparações são exploratórias; as hipóteses confirmatórias
+    são testadas com <code>benchmark confirm</code>.
   </p>
   {% for metric, ma in analysis.metrics.items() %}
   <h3>{{ metric | upper }} — {{ "menor é melhor" if ma.direction == "lower" else "maior é melhor" }}</h3>
@@ -106,9 +111,10 @@ _TEMPLATE = """<!DOCTYPE html>
       <tr>
         <th>Método</th><th>Prompt</th><th class="num">Músicas</th>
         <th class="num">Média</th><th class="num">Mediana</th>
-        <th class="num">Ganho médio [IC]</th><th class="num">Ganho mediano [IC]</th>
-        <th class="num">Melhorou / empatou / piorou</th>
-        <th class="num">p (Wilcoxon)</th><th class="num">Falhas graves</th><th>Pior caso</th>
+        <th class="num">Ganho médio [IC]</th><th class="num">Ganho típico HL [IC]</th>
+        <th class="num">Melhorou / empatou / piorou (p sinal)</th>
+        <th class="num">p Wilcoxon (Holm)</th><th class="num">Δ WER corpus [IC]</th>
+        <th class="num">Falhas graves</th><th>Pior caso</th>
       </tr>
     </thead>
     <tbody>
@@ -120,9 +126,10 @@ _TEMPLATE = """<!DOCTYPE html>
         <td class="num">{{ num(m.mean) }}</td>
         <td class="num">{{ num(m.median) }}</td>
         <td class="num {{ sig(m.gain_mean_sig) }}">{{ gain(m.gain_mean) }} {{ ci(m.gain_mean_ci) }}</td>
-        <td class="num {{ sig(m.gain_median_sig) }}">{{ gain(m.gain_median) }} {{ ci(m.gain_median_ci) }}</td>
-        <td class="num">{{ m.wins }} / {{ m.ties }} / {{ m.losses }}</td>
-        <td class="num">{% if m.wilcoxon_p is none %}—{% else %}{{ "%.4f" | format(m.wilcoxon_p) }}{% endif %}</td>
+        <td class="num {{ sig(m.gain_hl_sig) }}">{{ gain(m.gain_hl) }} {{ ci(m.gain_hl_ci) }}</td>
+        <td class="num">{{ m.wins }} / {{ m.ties }} / {{ m.losses }}{% if m.sign_test_p is not none %} ({{ "%.4f" | format(m.sign_test_p) }}){% endif %}</td>
+        <td class="num">{% if m.wilcoxon_p is none %}—{% else %}{{ "%.4f" | format(m.wilcoxon_p) }} ({{ "%.4f" | format(m.wilcoxon_p_holm) }}){% endif %}</td>
+        <td class="num {% if m.corpus %}{{ sig(m.corpus.gain_sig) }}{% endif %}">{% if m.corpus %}{{ gain(m.corpus.gain) }} {{ ci(m.corpus.gain_ci) }}{% else %}—{% endif %}</td>
         <td class="num">{{ m.severe_failures }} ({{ "%.1f" | format(m.severe_failure_rate * 100) }}%)</td>
         <td>{% if m.worst_cases %}{{ m.worst_cases[0].song_id }} ({{ gain(m.worst_cases[0].gain) }}){% else %}—{% endif %}</td>
       </tr>

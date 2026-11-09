@@ -14,7 +14,22 @@ Definições (para uma métrica qualquer):
 - intervalo de confiança = bootstrap percentil, reamostrando músicas.
 - falha grave = avaliação (música × rodada) em que o método piora a métrica em mais
   que ``severe_failure_threshold`` em relação ao baseline.
-- p-valor = teste de Wilcoxon (postos sinalizados) sobre os ganhos por música.
+
+Testes e estimativas (escolha fundamentada no PROTOCOLO, seção 7.3):
+
+- **Wilcoxon de postos sinalizados**, bilateral, com zeros tratados pelo método de Pratt
+  (os empates exatos — revisão que não muda nada — entram na ordenação em vez de serem
+  descartados, o que tornaria o teste otimista);
+- **Hodges–Lehmann** (mediana das médias de Walsh): a estimativa de efeito que
+  corresponde ao Wilcoxon, com IC por bootstrap. A mediana simples também é relatada;
+- **teste do sinal** (binomial exato sobre vitórias × derrotas): "melhorou em mais
+  músicas do que piorou", sem olhar a magnitude;
+- **WER do corpus** (erros totais ÷ palavras totais da letra), convenção da área de
+  reconhecimento de fala, com bootstrap pareado sobre músicas (Bisani & Ney, 2004). Ao
+  contrário dos anteriores, enxerga o tamanho de uma falha catastrófica;
+- p-valores ajustados por **Holm** e por **Benjamini–Hochberg** entre os métodos de uma
+  mesma métrica (comparações exploratórias). As hipóteses confirmatórias são testadas
+  à parte, em sequência fixa, por ``reporting/contrasts.py``.
 """
 
 import json
@@ -27,10 +42,11 @@ from scipy import stats as scipy_stats
 from ..config.schema import AnalysisConfig
 from ..models import ExperimentResult
 from .edits import analyze_edits
-from .errors import analyze_errors
+from .errors import analyze_errors, diagnose
 
 TIE_TOLERANCE = 1e-9
 WORST_CASES = 3
+CORPUS_METRIC = "wer"
 
 
 def higher_is_better(metric: str) -> bool:
@@ -74,14 +90,94 @@ def _ci_sign(ci: list[float] | None) -> int:
     return 0
 
 
-def _wilcoxon_p(gains: np.ndarray) -> float | None:
-    nonzero = gains[np.abs(gains) > TIE_TOLERANCE]
-    if len(nonzero) == 0:
+def wilcoxon_p(gains: np.ndarray) -> float | None:
+    """Wilcoxon bilateral com zeros pelo método de Pratt. None se todos empatam."""
+    gains = np.where(np.abs(gains) > TIE_TOLERANCE, gains, 0.0)
+    if not np.any(gains):
         return None
     try:
-        return float(scipy_stats.wilcoxon(nonzero).pvalue)
+        return float(scipy_stats.wilcoxon(gains, zero_method="pratt").pvalue)
     except ValueError:
         return None
+
+
+def sign_test_p(wins: int, losses: int) -> float | None:
+    if wins + losses == 0:
+        return None
+    return float(scipy_stats.binomtest(wins, wins + losses, 0.5).pvalue)
+
+
+def hodges_lehmann(values: np.ndarray, axis: int | None = None) -> np.ndarray | float:
+    """Mediana das médias de Walsh (x_i + x_j) / 2, i <= j."""
+    values = np.asarray(values)
+    if axis is None:
+        i, j = np.triu_indices(len(values))
+        return float(np.median((values[i] + values[j]) / 2))
+    # 2-D (reamostragens × músicas), usado pelo bootstrap
+    n = values.shape[1]
+    i, j = np.triu_indices(n)
+    chunk = max(1, 2_000_000 // len(i))  # limita a memória com muitas músicas
+    return np.concatenate([
+        np.median((block[:, i] + block[:, j]) / 2, axis=1)
+        for block in np.array_split(values, max(1, len(values) // chunk))
+    ])
+
+
+def adjust_holm(pvalues: list[float | None]) -> list[float | None]:
+    """p-valores ajustados por Holm (step-down). None é ignorado e preservado."""
+    idx = [k for k, p in enumerate(pvalues) if p is not None]
+    m = len(idx)
+    out: list[float | None] = [None] * len(pvalues)
+    running = 0.0
+    for rank, k in enumerate(sorted(idx, key=lambda k: pvalues[k])):
+        running = max(running, min(1.0, (m - rank) * pvalues[k]))
+        out[k] = running
+    return out
+
+
+def adjust_bh(pvalues: list[float | None]) -> list[float | None]:
+    """p-valores ajustados por Benjamini–Hochberg (FDR). None é ignorado e preservado."""
+    idx = [k for k, p in enumerate(pvalues) if p is not None]
+    m = len(idx)
+    out: list[float | None] = [None] * len(pvalues)
+    running = 1.0
+    ordered = sorted(idx, key=lambda k: pvalues[k], reverse=True)
+    for pos, k in enumerate(ordered):
+        rank = m - pos
+        running = min(running, pvalues[k] * m / rank)
+        out[k] = min(1.0, running)
+    return out
+
+
+def _corpus_gain(
+    counts: dict[str, tuple[float, float, float]], config: AnalysisConfig
+) -> dict | None:
+    """Ganho no WER do corpus. ``counts``: música → (erros baseline, erros método, palavras)."""
+    if not counts:
+        return None
+    arr = np.array(list(counts.values()))
+    eb, em, n = arr[:, 0], arr[:, 1], arr[:, 2]
+    base, meth = eb.sum() / n.sum(), em.sum() / n.sum()
+    result = {"baseline_wer": float(base), "method_wer": float(meth),
+              "gain": float(base - meth), "gain_ci": None, "gain_sig": 0,
+              "prob_improvement": None}
+    if len(arr) >= 2:
+        rng = np.random.default_rng(config.seed)
+        idx = rng.integers(0, len(arr), size=(config.bootstrap_samples, len(arr)))
+        gains = (eb[idx].sum(1) - em[idx].sum(1)) / n[idx].sum(1)
+        alpha = (1.0 - config.confidence) / 2.0
+        low, high = np.quantile(gains, [alpha, 1.0 - alpha])
+        result["gain_ci"] = [float(low), float(high)]
+        result["gain_sig"] = _ci_sign(result["gain_ci"])
+        result["prob_improvement"] = float(np.mean(gains > 0))
+    return result
+
+
+def _word_errors(result: ExperimentResult) -> tuple[float, float] | None:
+    d = diagnose(result.evaluated_transcription, result.ground_truth)
+    if d is None:
+        return None
+    return d["substitutions"] + d["deletions"] + d["insertions"], d["n_ref"]
 
 
 def _per_song(values: dict[tuple[str, int], float]) -> dict[str, list[float]]:
@@ -129,9 +225,11 @@ def _analyze_method(
     baseline: dict[tuple[str, int], float],
     higher: bool,
     config: AnalysisConfig,
+    baseline_rows: dict[tuple[str, int], ExperimentResult] | None = None,
 ) -> dict | None:
     values: dict[tuple[str, int], float] = {}
     gains: dict[tuple[str, int], float] = {}
+    paired: list[tuple[ExperimentResult, ExperimentResult]] = []
     for r in rows:
         key = (r.song_id, r.run)
         if key not in baseline:
@@ -139,6 +237,8 @@ def _analyze_method(
         value = r.metrics[metric]
         values[key] = value
         gains[key] = (value - baseline[key]) if higher else (baseline[key] - value)
+        if baseline_rows is not None:
+            paired.append((baseline_rows[key], r))
     if not gains:
         return None
 
@@ -152,6 +252,17 @@ def _analyze_method(
 
     gain_mean_ci = _bootstrap_ci(song_gain_array, np.mean, config)
     gain_median_ci = _bootstrap_ci(song_gain_array, np.median, config)
+    gain_hl_ci = _bootstrap_ci(song_gain_array, hodges_lehmann, config)
+
+    corpus = None
+    if paired:
+        per_song: dict[str, list[tuple[float, float, float]]] = defaultdict(list)
+        for b, m in paired:
+            eb, em = _word_errors(b), _word_errors(m)
+            if eb is not None and em is not None:
+                per_song[b.song_id].append((eb[0], em[0], eb[1]))
+        counts = {s: tuple(np.mean(v, axis=0)) for s, v in per_song.items()}
+        corpus = _corpus_gain(counts, config)
 
     summary = _value_summary(values)
     summary.update({
@@ -161,11 +272,16 @@ def _analyze_method(
         "gain_median": float(np.median(song_gain_array)),
         "gain_median_ci": gain_median_ci,
         "gain_median_sig": _ci_sign(gain_median_ci),
+        "gain_hl": hodges_lehmann(song_gain_array),
+        "gain_hl_ci": gain_hl_ci,
+        "gain_hl_sig": _ci_sign(gain_hl_ci),
         "gain_distribution": distribution(song_gain_array),
         "wins": wins,
         "ties": len(song_gain_array) - wins - losses,
         "losses": losses,
-        "wilcoxon_p": _wilcoxon_p(song_gain_array),
+        "wilcoxon_p": wilcoxon_p(song_gain_array),
+        "sign_test_p": sign_test_p(wins, losses),
+        "corpus": corpus,
         "severe_failures": len(severe),
         "severe_failure_rate": len(severe) / len(gains),
         "worst_cases": [
@@ -188,6 +304,14 @@ def _analyze_metric(
         if r.refinement_provider is None and _valid(r, metric)
     }
 
+    baseline_rows = None
+    if metric == CORPUS_METRIC:
+        baseline_rows = {
+            (r.song_id, r.run): r
+            for r in results
+            if r.refinement_provider is None and _valid(r, metric)
+        }
+
     by_method: dict[tuple[str, str, str], list[ExperimentResult]] = defaultdict(list)
     for r in results:
         if r.refinement_provider is not None and _valid(r, metric):
@@ -195,12 +319,17 @@ def _analyze_metric(
 
     methods = []
     for (provider, model, prompt), rows in by_method.items():
-        summary = _analyze_method(rows, metric, baseline, higher, config)
+        summary = _analyze_method(rows, metric, baseline, higher, config, baseline_rows)
         if summary is None:
             continue
         methods.append({"provider": provider, "model": model, "prompt": prompt, **summary})
 
-    methods.sort(key=lambda m: (m["gain_median"], m["gain_mean"]), reverse=True)
+    methods.sort(key=lambda m: (m["gain_hl"], m["gain_mean"]), reverse=True)
+
+    p_values = [m["wilcoxon_p"] for m in methods]
+    for m, holm, bh in zip(methods, adjust_holm(p_values), adjust_bh(p_values), strict=True):
+        m["wilcoxon_p_holm"] = holm
+        m["wilcoxon_p_bh"] = bh
 
     return {
         "direction": "higher" if higher else "lower",

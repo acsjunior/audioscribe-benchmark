@@ -648,9 +648,10 @@ rodadas — a música é a unidade de análise.
 | Coluna | Como ler |
 |---|---|
 | Ganho médio [IC] | Média do ganho entre músicas, com intervalo de confiança (padrão 95%, por bootstrap). Sensível a falhas isoladas |
-| Ganho mediano [IC] | Ganho da música típica. Pouco afetado por falhas isoladas |
-| Melhorou / empatou / piorou | Em quantas músicas o método ganhou, empatou e perdeu para o baseline |
-| p (Wilcoxon) | Teste de postos sinalizados sobre os ganhos por música. Não é corrigido para múltiplas comparações |
+| Ganho típico HL [IC] | Estimativa de Hodges–Lehmann: o ganho da música típica, a medida que acompanha o teste de Wilcoxon. Pouco afetado por falhas isoladas |
+| Melhorou / empatou / piorou (p sinal) | Em quantas músicas o método ganhou, empatou e perdeu para o baseline; entre parênteses, o teste do sinal |
+| p Wilcoxon (Holm) | Teste de postos sinalizados (bilateral, empates pelo método de Pratt) sobre os ganhos por música; entre parênteses, ajustado por Holm entre os métodos da tabela |
+| Δ WER corpus [IC] | Diferença no WER calculado sobre todas as palavras de todas as músicas. Ao contrário do ganho típico, enxerga o tamanho de uma falha catastrófica |
 | Falhas graves | Avaliações em que a métrica piorou mais que o limite (padrão 0,2) |
 | Pior caso | Música com a maior piora |
 
@@ -677,7 +678,16 @@ analysis:
   seed: 0                        # semente (resultado reproduzível)
 ```
 
-O `stats.json` guarda todos esses números para uso em tabelas e gráficos.
+Abaixo da tabela, a **distribuição** de cada método sobre as músicas (média, desvio
+padrão, mínimo, Q1, mediana, Q3 e máximo), da métrica e do ganho.
+
+Quando o ganho típico é positivo e o Δ WER do corpus é negativo, o método melhora a
+maioria das músicas mas aumenta o total de erros — normalmente por uma ou poucas falhas
+graves. As duas leituras importam.
+
+O `stats.json` guarda todos esses números (e o p ajustado por Benjamini–Hochberg) para
+uso em tabelas e gráficos. Estas comparações contra o baseline são **exploratórias**: as
+hipóteses do estudo são testadas com `benchmark confirm` (seção 8.7).
 
 ### 8.5 Diagnóstico de erros
 
@@ -722,6 +732,43 @@ Muitas alterações prejudiciais indicam que o modelo "corrige" o que estava
 certo; poucas propostas e muitas úteis indicam um verificador conservador e
 preciso. O campo `verification` do `results.json` guarda, por avaliação, o
 rascunho, os segmentos, cada alteração e a resposta bruta do modelo.
+
+### 8.7 Hipóteses confirmatórias (`benchmark confirm`)
+
+As hipóteses do estudo (PROTOCOLO.md, seção 2) são declaradas num YAML antes de rodar o
+conjunto de teste, e testadas de uma vez:
+
+```yaml
+alpha: 0.05
+metric: wer
+failures: exclude        # draft: conta cada falha como o rascunho (análise de sensibilidade)
+contrasts:
+  - name: H1
+    reference: {results: results/teste_A/results.json, method: baseline}
+    treatment: {results: results/teste_A/results.json, method: "verify:openai-audio/gpt-audio [edits_v1 · áudio=original · meta=não · rascunho=run]"}
+  - name: H2
+    after: H1            # só é testada se H1 for confirmada
+    reference: {results: results/teste_A/results.json, method: "verify:openai-audio/gpt-audio [edits_v1 · áudio=none · meta=não · rascunho=run]"}
+    treatment: {results: results/teste_A/results.json, method: "verify:openai-audio/gpt-audio [edits_v1 · áudio=original · meta=não · rascunho=run]"}
+  - name: H3
+    after: H1
+    reference: {results: results/teste_B/results.json, method: baseline}   # transcrição direta (E6)
+    treatment: {results: results/teste_A/results.json, method: "verify:openai-audio/gpt-audio [edits_v1 · áudio=original · meta=não · rascunho=run]"}
+```
+
+```bash
+uv run python -m benchmark confirm hipoteses.yaml
+```
+
+- `method` é o rótulo do método como aparece no relatório, ou `baseline`. Um nome
+  errado mostra a lista de rótulos disponíveis.
+- Os dois lados podem vir de execuções diferentes: o pareamento é por música (média das
+  rodadas de cada lado).
+- **Sequência fixa**: os contrastes sem `after` são testados primeiro; os que têm
+  `after: H1` só são testados se H1 for rejeitada, com correção de Holm entre eles. Se o
+  "portão" fechar, aparecem como "não testada".
+- Saída: um resumo no terminal e `hipoteses.json` com ganho de Hodges–Lehmann e IC,
+  vitórias/empates/derrotas, p-valores (bruto e ajustado), WER do corpus e falhas.
 
 ---
 
