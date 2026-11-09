@@ -313,3 +313,29 @@ def test_consensus_requires_three_runs():
             experiment_name="x", metrics=["wer"], catalog_path="c.csv",
             transcription={"runs": 2, "consensus": True},
         )
+
+
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.get_multimodal_transcriber")
+async def test_multimodal_provider_uses_its_own_transcriber_and_cache(
+    mock_get, mock_catalog, tmp_path
+):
+    mock_get.return_value = t = _transcriber()
+    mock_catalog.return_value = [_song(tmp_path)]
+    config = _config(tmp_path, provider="google", model="gemini-2.5-flash", runs=2)
+
+    pipeline = Pipeline(config)
+    run_dir = await pipeline.run()
+
+    mock_get.assert_called_once_with("google", "gemini-2.5-flash", None)
+    assert t.transcribe.call_count == 2
+    assert len(_rows(run_dir)) == 2
+    assert pipeline.cache.dir.name.startswith("gemini-2-5-flash__original__p")
+
+
+def test_unknown_transcription_provider_rejected():
+    with pytest.raises(ValueError):
+        ExperimentConfig(
+            experiment_name="x", metrics=["wer"], catalog_path="c.csv",
+            transcription={"provider": "claude"},
+        )

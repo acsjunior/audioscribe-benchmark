@@ -222,6 +222,25 @@ Para o Whisper:
 | `gpt-4o-transcribe` | Suporta `transcription_prompt`; usa prompt padrão do projeto se omitido |
 | `gpt-4o-mini-transcribe` | Versão mais leve; sem prompt padrão automático |
 
+**Transcrição por LLM multimodal.** Além do `whisper` (API de transcrição da
+OpenAI), `transcription.provider` aceita `google` (Gemini) e `openai-audio`
+(`gpt-audio`, `gpt-audio-mini`): o LLM ouve o áudio e escreve a letra direto.
+Serve de **grupo de controle** para a conferência com áudio: se transcrever direto
+já rende o mesmo que conferir um rascunho, a conferência não acrescenta nada. O
+prompt padrão não informa título, autoria nem intérprete (não dá para acertar por
+memorização); `transcription_prompt` o substitui. Funciona com `runs`, cache e
+`consensus`, mas só aceita áudio `.mp3`/`.wav` (não use com formatos convertidos).
+
+```yaml
+transcription:
+  provider: openai-audio
+  model: gpt-audio
+  runs: 5
+```
+
+O Gemini precisa de `GOOGLE_API_KEY`. Respostas bloqueadas pelo provedor (filtro
+de recitação de letras) contam como falha da rodada.
+
 ### 5.3 Pré-processamento de áudio
 
 O campo `audio_preprocessing` aplica um tratamento ao MP3 antes de enviá-lo para

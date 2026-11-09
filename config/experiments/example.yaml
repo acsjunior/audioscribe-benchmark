@@ -9,9 +9,10 @@ retry:
   backoff_factor: 2.0
 
 transcription:
-  provider: whisper
+  provider: whisper   # whisper | google | openai-audio (os dois últimos: LLM multimodal, ver MANUAL 5.2)
   model: whisper-1
-  # Modelos disponíveis: whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe
+  # Modelos (whisper): whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe
+  # Modelos (google): gemini-2.5-flash, ...   (openai-audio): gpt-audio, gpt-audio-mini
   #
   # Exemplo com gpt-4o-transcribe e prompt de contexto personalizado:
   # model: gpt-4o-transcribe

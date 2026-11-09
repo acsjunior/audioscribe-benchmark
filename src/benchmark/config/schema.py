@@ -14,7 +14,8 @@ class RetryConfig(BaseModel):
 
 
 class TranscriptionConfig(BaseModel):
-    provider: str = "whisper"
+    # whisper = API de transcrição da OpenAI; google / openai-audio = LLM multimodal (E6)
+    provider: Literal["whisper", "google", "openai-audio"] = "whisper"
     model: str = "whisper-1"
     transcription_prompt: str | None = None
     audio_preprocessing: Literal["demucs", "noisereduce", "deepfilternet"] | None = None

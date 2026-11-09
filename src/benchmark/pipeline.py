@@ -18,6 +18,7 @@ from .reporting.html_reporter import write_html
 from .reporting.json_reporter import write_json
 from .reporting.stats import analyze, write_stats_json
 from .transcription.cache import TranscriptionCache, file_sha256
+from .transcription.multimodal import get_multimodal_transcriber, multimodal_prompt
 from .transcription.whisper import WhisperTranscriber, effective_prompt
 from .utils.retry import async_retry
 from .voice_isolation import isolate_voice
@@ -37,12 +38,21 @@ class Pipeline:
     def __init__(self, config: ExperimentConfig, drive_service=None) -> None:
         self.config = config
         self.drive_service = drive_service
-        self.transcriber = WhisperTranscriber(
-            model=config.transcription.model,
-            prompt=config.transcription.transcription_prompt,
-        )
+        self.transcriber = self._build_transcriber()
         self.metrics = get_metrics(config.metrics)
         self.cache = self._build_cache() if config.transcription.cache else None
+
+    def _build_transcriber(self):
+        tcfg = self.config.transcription
+        if tcfg.provider == "whisper":
+            return WhisperTranscriber(model=tcfg.model, prompt=tcfg.transcription_prompt)
+        return get_multimodal_transcriber(tcfg.provider, tcfg.model, tcfg.transcription_prompt)
+
+    def _effective_transcription_prompt(self) -> str | None:
+        tcfg = self.config.transcription
+        if tcfg.provider == "whisper":
+            return effective_prompt(tcfg.model, tcfg.transcription_prompt)
+        return multimodal_prompt(tcfg.transcription_prompt)
 
     def _build_cache(self) -> TranscriptionCache:
         tcfg = self.config.transcription
@@ -54,7 +64,7 @@ class Pipeline:
         return TranscriptionCache(
             root=root,
             model=tcfg.model,
-            prompt=effective_prompt(tcfg.model, tcfg.transcription_prompt),
+            prompt=self._effective_transcription_prompt(),
             preprocessing=tcfg.audio_preprocessing,
         )
 

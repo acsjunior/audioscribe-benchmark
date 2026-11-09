@@ -87,7 +87,7 @@ longa demais). Sai em `stats.json` (`errors`) e no `report.html`.
 Entre as `n` transcrições, escolher a mais parecida com as demais (medoide). Não
 usa a letra de referência nem API; serve de método e de rascunho para o E7.
 
-**E6. Modelo multimodal transcrevendo direto** *(grupo de controle)*
+**E6. Modelo multimodal transcrevendo direto** *(grupo de controle)* — ✅ implementado (falta medir; Gemini sem teste ao vivo)
 Transcritor baseado em LLM com entrada de áudio (Gemini / gpt-4o-audio). Separa o
 efeito "modelo melhor de ouvido" do efeito "conferência" no E7.
 
