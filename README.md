@@ -164,6 +164,9 @@ Os logs da execução ficam em `logs/`.
 - **[MANUAL.md](MANUAL.md)**: guia completo de uso, com todas as opções de
   configuração, formato do catálogo, criação de prompts, leitura dos resultados
   e solução de problemas
+- **[PROTOCOLO.md](PROTOCOLO.md)**: protocolo do estudo (hipóteses, dados, letras de
+  referência, análise estatística)
+- **[ROADMAP.md](ROADMAP.md)**: plano de entregáveis
 - **[CLAUDE.md](CLAUDE.md)**: arquitetura e decisões técnicas do código
 
 ## Desenvolvimento

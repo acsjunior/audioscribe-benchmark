@@ -37,7 +37,7 @@ Os resultados dessa fase serão arquivados e citados como estudo exploratório.
 
 ### Fase 0 — Protocolo
 
-**E0. Protocolo do estudo**
+**E0. Protocolo do estudo** — 📝 rascunho em [PROTOCOLO.md](PROTOCOLO.md) (itens pendentes marcados)
 Documento com hipóteses, métrica principal, análise estatística, critérios de
 inclusão, procedimento de conferência de letras, divisão dev/teste e registro de
 versões de modelos. Vira a seção de metodologia do trabalho.
