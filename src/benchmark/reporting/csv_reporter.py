@@ -12,7 +12,7 @@ def write_csv(results: list[ExperimentResult], output_path: Path) -> None:
     fieldnames = [
         "song_id", "split", "run", "titulo", "autoria", "interpretacao", "disco", "ano", "genero",
         "refinement_provider", "refinement_model", "prompt_name", "prompt_file",
-        "tokens_used", "response_time_ms", "error",
+        "tokens_used", "response_time_ms", "error", "edits_proposed", "edits_applied",
     ] + metric_keys
 
     with open(output_path, "w", newline="", encoding="utf-8") as f:
@@ -36,6 +36,8 @@ def write_csv(results: list[ExperimentResult], output_path: Path) -> None:
                 "tokens_used": r.tokens_used if r.tokens_used is not None else "",
                 "response_time_ms": f"{r.response_time_ms:.0f}" if r.response_time_ms else "",
                 "error": r.error or "",
+                "edits_proposed": len(r.verification["edits"]) if r.verification else "",
+                "edits_applied": r.verification["num_applied"] if r.verification else "",
             }
             row.update({k: v if v is not None else "" for k, v in r.metrics.items()})
             writer.writerow(row)

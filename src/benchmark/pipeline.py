@@ -21,6 +21,7 @@ from .transcription.cache import TranscriptionCache, file_sha256
 from .transcription.multimodal import get_multimodal_transcriber, multimodal_prompt
 from .transcription.whisper import WhisperTranscriber, effective_prompt
 from .utils.retry import async_retry
+from .verification.verifier import Verifier, load_verification_prompt
 from .voice_isolation import isolate_voice
 
 logger = logging.getLogger("benchmark")
@@ -41,6 +42,10 @@ class Pipeline:
         self.transcriber = self._build_transcriber()
         self.metrics = get_metrics(config.metrics)
         self.cache = self._build_cache() if config.transcription.cache else None
+        self.verifiers = [
+            (vcfg, Verifier(vcfg.provider, vcfg.model, load_verification_prompt(vcfg.prompt_file)))
+            for vcfg in config.verification
+        ]
 
     def _build_transcriber(self):
         tcfg = self.config.transcription
@@ -213,6 +218,88 @@ class Pipeline:
             for run in sorted(transcriptions)
         ]
 
+    def _verification_audio(self, song: SongData, kind: str, isolated: dict) -> Path | None:
+        """Áudio enviado ao verificador. ``isolated`` guarda a voz isolada da música."""
+        if kind == "none":
+            return None
+        original = self._resolve_audio_path(song.audio_filename)
+        if kind == "original":
+            return original
+        if "path" not in isolated:
+            func, _ = _get_preprocessor("demucs")
+            isolated["path"] = func(original)
+        return isolated["path"]
+
+    async def _verify_song(
+        self, song: SongData, transcriptions: dict[int, str], metadata: dict
+    ) -> list[ExperimentResult]:
+        results: list[ExperimentResult] = []
+        consensus_text: str | None = None
+        if len(transcriptions) >= MIN_RUNS:
+            consensus_text = transcriptions[medoid(transcriptions)]
+        isolated: dict = {}
+
+        for j, (vcfg, verifier) in enumerate(self.verifiers, 1):
+            label = f"{verifier.prompt.name} · {vcfg.variant}"
+            logger.info(f"  Conferência [{j}/{len(self.verifiers)}] {vcfg.model} [{label}]")
+            base = {
+                "refinement_provider": f"verify:{vcfg.provider}",
+                "refinement_model": vcfg.model,
+                "prompt_name": label,
+                "prompt_file": vcfg.prompt_file,
+            }
+            if vcfg.draft == "consensus" and consensus_text is None:
+                logger.warning(
+                    f"    Ignorada: consenso exige {MIN_RUNS} rodadas válidas"
+                )
+                continue
+            runs = sorted(transcriptions)[: vcfg.max_runs]
+
+            try:
+                audio_path = self._verification_audio(song, vcfg.audio, isolated)
+            except Exception as e:
+                logger.error(f"    Áudio para conferência falhou: {e}")
+                results.extend(
+                    self._result(song, run, transcriptions[run], error=str(e), **base)
+                    for run in runs
+                )
+                continue
+
+            verify_fn = self._with_retry(verifier.verify)
+            for run in runs:
+                draft = consensus_text if vcfg.draft == "consensus" else transcriptions[run]
+                try:
+                    out = await verify_fn(draft, audio_path, metadata if vcfg.metadata else None)
+                except Exception as e:
+                    logger.error(f"    Rodada {run}: falhou: {e}")
+                    error = f"{type(e).__name__}: {e}"
+                    results.append(
+                        self._result(song, run, transcriptions[run], error=error, **base)
+                    )
+                    continue
+                logger.info(
+                    f"    Rodada {run}: {out.num_applied}/{len(out.outcomes)} alteração(ões) "
+                    f"aplicada(s)"
+                )
+                results.append(self._result(
+                    song, run, transcriptions[run],
+                    refined_transcription=out.text,
+                    metrics=self._compute_metrics(out.text, song.ground_truth),
+                    response_time_ms=out.response_time_ms,
+                    verification={
+                        "draft_kind": vcfg.draft,
+                        "audio": vcfg.audio,
+                        "metadata": vcfg.metadata,
+                        "draft": draft,
+                        "segments": out.segments,
+                        "edits": [o.to_dict() for o in out.outcomes],
+                        "num_applied": out.num_applied,
+                        "raw_response": out.raw_response,
+                    },
+                    **base,
+                ))
+        return results
+
     async def run(self) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_dir = Path(self.config.results_path) / f"{self.config.experiment_name}_{timestamp}"
@@ -309,6 +396,11 @@ class Pipeline:
 
             if self.config.transcription.consensus:
                 all_results.extend(self._consensus_results(song, transcriptions))
+
+            if self.verifiers and transcriptions:
+                all_results.extend(
+                    await self._verify_song(song, transcriptions, song_metadata)
+                )
 
         if all_results:
             write_csv(all_results, run_dir / "results.csv")

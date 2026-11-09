@@ -1,6 +1,7 @@
 """Testes das rodadas múltiplas, do cache de transcrições e do filtro por split."""
 
 import csv
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -334,8 +335,98 @@ async def test_multimodal_provider_uses_its_own_transcriber_and_cache(
 
 
 def test_unknown_transcription_provider_rejected():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="provider"):
         ExperimentConfig(
             experiment_name="x", metrics=["wer"], catalog_path="c.csv",
             transcription={"provider": "claude"},
         )
+
+
+def _verify_config(tmp_path, runs=2, **variant):
+    return ExperimentConfig(
+        experiment_name="teste",
+        metrics=["wer"],
+        catalog_path=str(tmp_path / "catalogo.csv"),
+        results_path=str(tmp_path / "results"),
+        drive={"audio_dir": str(tmp_path / "inputs")},
+        transcription={"runs": runs},
+        retry={"max_attempts": 1},
+        verification=[{
+            "provider": "openai-audio", "model": "gpt-audio",
+            "prompt_file": "prompts/verification/edits_v1.yaml", **variant,
+        }],
+    )
+
+
+def _fake_verifier(get_llm, responses):
+    llm = MagicMock()
+    llm.complete = AsyncMock(side_effect=responses)
+    get_llm.return_value = llm
+    return llm
+
+
+@patch("benchmark.verification.verifier.get_audio_llm")
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_verification_rows_per_run(mock_cls, mock_catalog, get_llm, tmp_path):
+    mock_cls.return_value = _transcriber(side_effect=lambda p: "as rosas nao falam")
+    mock_catalog.return_value = [_song(tmp_path)]
+    edit = '{"edits": [{"op": "replace", "segment": 1, "old": "nao", "new": "não"}]}'
+    llm = _fake_verifier(get_llm, [edit, '{"edits": []}'])
+
+    run_dir = await Pipeline(_verify_config(tmp_path, metadata=True)).run()
+
+    rows = [r for r in _rows(run_dir) if r["refinement_provider"] == "verify:openai-audio"]
+    assert [r["run"] for r in rows] == ["1", "2"]
+    assert rows[0]["wer"] == "0.0"
+    assert rows[0]["edits_applied"] == "1"
+    assert rows[1]["edits_proposed"] == "0"
+    assert "áudio=original · meta=sim · rascunho=run" in rows[0]["prompt_name"]
+    audio_arg = llm.complete.call_args_list[0].args[1]
+    assert audio_arg == tmp_path / "inputs" / "audio.mp3"
+    assert "Título: As Rosas Não Falam" in llm.complete.call_args_list[0].args[0]
+    assert (run_dir / "stats.json").exists()
+
+
+@patch("benchmark.verification.verifier.get_audio_llm")
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_verification_text_only_max_runs_and_errors(
+    mock_cls, mock_catalog, get_llm, tmp_path
+):
+    mock_cls.return_value = _transcriber()
+    mock_catalog.return_value = [_song(tmp_path)]
+    llm = _fake_verifier(get_llm, ["sem json"])
+
+    run_dir = await Pipeline(_verify_config(tmp_path, runs=3, audio="none", max_runs=1)).run()
+
+    rows = [r for r in _rows(run_dir) if r["refinement_provider"] == "verify:openai-audio"]
+    assert len(rows) == 1
+    assert rows[0]["error"].startswith("EditParseError")
+    assert llm.complete.call_args.args[1] is None
+
+
+@patch("benchmark.verification.verifier.get_audio_llm")
+@patch("benchmark.pipeline.isolate_voice")
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_verification_consensus_draft_and_isolated_audio(
+    mock_cls, mock_catalog, mock_isolate, get_llm, tmp_path
+):
+    outputs = iter(["as rosas não falam", "as rosas não falam", "bla bla bla"])
+    mock_cls.return_value = _transcriber(side_effect=lambda p: next(outputs))
+    mock_catalog.return_value = [_song(tmp_path)]
+    mock_isolate.return_value = tmp_path / "inputs" / "audio_vocals.wav"
+    llm = _fake_verifier(get_llm, ['{"edits": []}'] * 3)
+
+    await Pipeline(_verify_config(tmp_path, runs=3, audio="isolated", draft="consensus")).run()
+
+    mock_isolate.assert_called_once()  # voz isolada calculada uma vez por música
+    for call in llm.complete.call_args_list:
+        assert "[1] as rosas não falam" in call.args[0]  # rascunho = consenso, não o outlier
+        assert call.args[1] == tmp_path / "inputs" / "audio_vocals.wav"
+
+
+def test_consensus_draft_requires_three_runs():
+    with pytest.raises(ValueError, match="draft: consensus"):
+        _verify_config(Path("."), runs=2, draft="consensus")

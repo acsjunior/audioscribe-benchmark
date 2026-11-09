@@ -314,7 +314,54 @@ transcription:
   consensus: true
 ```
 
-### 5.5 Métricas disponíveis
+### 5.5 Conferência com áudio
+
+A conferência pega o rascunho (a transcrição de uma rodada, ou o consenso) e o
+envia a um modelo que **ouve a gravação** e devolve uma lista de alterações
+pontuais. O pipeline aplica as alterações; o modelo nunca reescreve a letra.
+
+```yaml
+verification:
+  - provider: openai-audio        # openai-audio | google
+    model: gpt-audio
+    prompt_file: prompts/verification/edits_v1.yaml
+    audio: original               # original | isolated | none
+    metadata: false
+    draft: run                    # run | consensus
+    max_runs: 2                   # opcional: confere só as 2 primeiras rodadas
+```
+
+| Opção | Valores |
+|---|---|
+| `audio` | `original` (MP3 do catálogo), `isolated` (voz isolada com demucs), `none` (sem áudio: controle que mede quanto do ganho vem de ouvir) |
+| `metadata` | `true` inclui título, autoria, intérprete e ano no prompt (mede o efeito de o modelo "conhecer" a música) |
+| `draft` | `run` (cada rodada) ou `consensus` (a transcrição mais central, exige `runs` ≥ 3) |
+| `max_runs` | quantas rodadas conferir por música (padrão: todas) |
+
+Cada entrada é uma **variante** e aparece como um método próprio no relatório,
+com o nome `edits_v1 · áudio=original · meta=não · rascunho=run`.
+
+**Como o modelo indica as alterações.** O rascunho é dividido em segmentos
+numerados (`[1] ...`, `[2] ...`) e o modelo responde em JSON:
+
+```json
+{"edits": [
+  {"op": "replace", "segment": 4, "old": "toca sulto", "new": "toca surdo", "heard": "..."},
+  {"op": "insert",  "segment": 7, "new": "trecho cantado que faltava"},
+  {"op": "delete",  "segment": 9, "old": "trecho que não é cantado"}
+]}
+```
+
+Uma alteração só é aplicada se o trecho `old` aparece exatamente uma vez no
+segmento; caso contrário é rejeitada, com o motivo registrado. Uma resposta que
+não seja esse JSON conta como **falha** da avaliação, não como "nenhuma
+alteração".
+
+Use as variantes para separar efeitos: compare com a transcrição direta do
+**mesmo modelo** (seção 5.2), com `audio: none` e com `metadata: true`. Antes de
+rodar o conjunto inteiro, teste o prompt em 2 ou 3 músicas de desenvolvimento.
+
+### 5.6 Métricas disponíveis
 
 | Métrica | Descrição | Interpretação |
 |---|---|---|
@@ -326,7 +373,7 @@ transcription:
 > do cálculo, penalizando apenas diferenças de conteúdo lexical. Acentuação é
 > preservada — "nao" vs "não" ainda conta como erro.
 
-### 5.6 Exemplos de baterias de testes
+### 5.7 Exemplos de baterias de testes
 
 **Teste rápido (só baseline + um prompt):**
 ```yaml
@@ -656,6 +703,25 @@ Alertas, contados por avaliação (música × rodada):
 Uma revisão que *omite* muito mais que o baseline está resumindo ou cortando, e
 não corrigindo. O diagnóstico também funciona em resultados antigos:
 `benchmark analyze results.json`.
+
+### 8.6 Conferência com áudio: alterações
+
+Quando há variantes de conferência, a seção "Conferência com Áudio: Alterações"
+(chave `verification` do `stats.json`) mostra, por variante:
+
+| Coluna | Como ler |
+|---|---|
+| Falhas (bloqueio / formato / outras) | Avaliações sem resultado: o provedor bloqueou (filtro de recitação), a resposta não era JSON válido ou outro erro. **Ficam fora da análise pareada**, então uma variante com muitas falhas pode parecer melhor do que é |
+| Sem alteração | Respostas `{"edits": []}` |
+| Propostas / aplicadas | Alterações sugeridas e as que passaram nas regras |
+| Úteis / neutras / prejudiciais | Cada alteração aplicada, testada sozinha sobre o rascunho: reduziu, manteve ou aumentou o WER contra a letra |
+| Reescritas | Avaliações em que mais de 30% das palavras mudaram (`analysis.max_change_fraction`) |
+| Principal motivo de rejeição | Ex.: trecho não encontrado, ambíguo, sobreposto |
+
+Muitas alterações prejudiciais indicam que o modelo "corrige" o que estava
+certo; poucas propostas e muitas úteis indicam um verificador conservador e
+preciso. O campo `verification` do `results.json` guarda, por avaliação, o
+rascunho, os segmentos, cada alteração e a resposta bruta do modelo.
 
 ---
 

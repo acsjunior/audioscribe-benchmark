@@ -48,6 +48,17 @@ refinement:
     model: gemini-2.0-flash
     prompt_file: prompts/rich_context.yaml
 
+# Conferência com áudio (E7): o modelo ouve a gravação e propõe alterações no rascunho.
+# Uma entrada por variante. Ver MANUAL seção 5.5.
+# verification:
+#   - provider: openai-audio          # openai-audio | google
+#     model: gpt-audio
+#     prompt_file: prompts/verification/edits_v1.yaml
+#     audio: original                 # original | isolated (demucs) | none (controle só texto)
+#     metadata: false                 # inclui título/autoria/intérprete/ano no prompt
+#     draft: run                      # run | consensus (exige runs >= 3)
+#     max_runs: 2                     # confere só as 2 primeiras rodadas (opcional)
+
 metrics:
   - wer
   - cer

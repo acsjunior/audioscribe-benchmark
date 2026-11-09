@@ -26,6 +26,7 @@ from scipy import stats as scipy_stats
 
 from ..config.schema import AnalysisConfig
 from ..models import ExperimentResult
+from .edits import analyze_edits
 from .errors import analyze_errors
 
 TIE_TOLERANCE = 1e-9
@@ -202,11 +203,13 @@ def analyze(
             "seed": config.seed,
             "length_ratio_min": config.length_ratio_min,
             "length_ratio_max": config.length_ratio_max,
+            "max_change_fraction": config.max_change_fraction,
         },
         "num_songs": len({r.song_id for r in results}),
         "num_runs": max((r.run for r in results), default=0),
         "metrics": {m: _analyze_metric(results, m, config) for m in metric_names},
         "errors": analyze_errors(results, config),
+        "verification": analyze_edits(results, config),
     }
 
 

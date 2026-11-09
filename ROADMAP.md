@@ -93,11 +93,27 @@ efeito "modelo melhor de ouvido" do efeito "conferência" no E7.
 
 ### Fase 3 — Conferência com áudio
 
-**E7. Conferência com áudio**
+**E7. Conferência com áudio** — ✅ implementado (falta piloto do prompt e medição)
 Etapa nova que recebe áudio + rascunho (+ metadados) e devolve uma lista de
 alterações auditáveis, aplicadas pelo pipeline. Variantes: rascunho de uma rodada
 vs. consenso; com vs. sem metadados (efeito de memorização); áudio original, voz
-isolada ou ambos.
+isolada ou nenhum (controle só texto).
+
+Desenho (revisado antes da implementação):
+- o rascunho é dividido por código em **segmentos numerados** (os rascunhos vêm em
+  parágrafo único, e o refrão se repete);
+- operações `replace`, `delete` e `insert` (trechos pulados e inventados também são
+  corrigíveis); `old` precisa ser único no segmento;
+- resposta mal formada é **erro**, nunca "nenhuma alteração";
+- **precisão por alteração** (útil/neutra/prejudicial) e taxa de falhas por variante;
+- a comparação com o E6 é sempre com **o mesmo modelo**.
+
+Próximos passos: piloto em 3 músicas dev para ajustar o prompt (no teste ao vivo, o
+`gpt-audio` propôs alteração só de pontuação e nenhum `delete` num rascunho longo
+demais); depois, 2 rodadas por música no dev. A referência deve registrar as
+repetições cantadas (no baseline antigo, 12% das palavras inseridas eram trechos
+que existem na letra), senão restaurar um refrão cantado é penalizado — regra a
+fixar no procedimento de letras do E0.
 
 > **Ponto de decisão**: sem ganho acima do ruído, a hipótese está respondida.
 

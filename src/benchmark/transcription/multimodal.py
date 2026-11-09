@@ -62,19 +62,27 @@ def _suffix(audio_path: Path, supported: dict[str, str]) -> str:
     return suffix
 
 
-class GeminiTranscriber(BaseTranscriber):
-    def __init__(self, model: str = "gemini-2.5-flash", prompt: str | None = None) -> None:
+class GeminiAudioLLM:
+    """Chamada ao Gemini com texto e, opcionalmente, áudio inline."""
+
+    provider = "google"
+
+    def __init__(self, model: str) -> None:
         self.model = model
-        self.prompt = multimodal_prompt(prompt)
         self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY", ""))
 
-    def _call_sync(self, audio_path: Path) -> str:
-        mime = AUDIO_MIME_TYPES[_suffix(audio_path, AUDIO_MIME_TYPES)]
-        audio = types.Part.from_bytes(data=audio_path.read_bytes(), mime_type=mime)
+    def _call_sync(self, text: str, audio_path: Path | None, system: str | None) -> str:
+        parts = [types.Part(text=text)]
+        if audio_path is not None:
+            mime = AUDIO_MIME_TYPES[_suffix(audio_path, AUDIO_MIME_TYPES)]
+            parts.append(types.Part.from_bytes(data=audio_path.read_bytes(), mime_type=mime))
+        config = types.GenerateContentConfig(temperature=0.0)
+        if system:
+            config.system_instruction = system
         response = self.client.models.generate_content(
             model=self.model,
-            contents=[types.Content(role="user", parts=[types.Part(text=self.prompt), audio])],
-            config=types.GenerateContentConfig(temperature=0.0),
+            contents=[types.Content(role="user", parts=parts)],
+            config=config,
         )
 
         finish = response.candidates[0].finish_reason if response.candidates else None
@@ -87,48 +95,44 @@ class GeminiTranscriber(BaseTranscriber):
             raise TruncatedResponseError(
                 f"Google {self.model} truncou a resposta (finish_reason=MAX_TOKENS)"
             )
-        text = _clean(response.text)
-        if not text:
+        out = _clean(response.text)
+        if not out:
             raise RuntimeError(f"Google {self.model} devolveu uma resposta vazia")
-        return text
+        return out
 
-    async def transcribe(self, audio_path: Path) -> str:
-        logger.debug(f"Transcribing {audio_path.name} with {self.model}")
-        start = time.monotonic()
-        text = await asyncio.to_thread(self._call_sync, audio_path)
-        logger.debug(f"Transcription completed in {(time.monotonic() - start) * 1000:.0f}ms")
-        return text
+    async def complete(
+        self, text: str, audio_path: Path | None = None, system: str | None = None
+    ) -> str:
+        return await asyncio.to_thread(self._call_sync, text, audio_path, system)
 
 
-class OpenAIAudioTranscriber(BaseTranscriber):
-    def __init__(self, model: str = "gpt-audio", prompt: str | None = None) -> None:
+class OpenAIAudioLLM:
+    """Chamada a um modelo ``gpt-audio*`` com texto e, opcionalmente, áudio."""
+
+    provider = "openai-audio"
+
+    def __init__(self, model: str) -> None:
         self.model = model
-        self.prompt = multimodal_prompt(prompt)
         self.client = AsyncOpenAI()
 
-    async def transcribe(self, audio_path: Path) -> str:
-        logger.debug(f"Transcribing {audio_path.name} with {self.model}")
-        fmt = OPENAI_AUDIO_FORMATS[_suffix(audio_path, OPENAI_AUDIO_FORMATS)]
-        data = base64.b64encode(audio_path.read_bytes()).decode("ascii")
+    async def complete(
+        self, text: str, audio_path: Path | None = None, system: str | None = None
+    ) -> str:
+        content: list[dict] = [{"type": "text", "text": text}]
+        if audio_path is not None:
+            fmt = OPENAI_AUDIO_FORMATS[_suffix(audio_path, OPENAI_AUDIO_FORMATS)]
+            data = base64.b64encode(audio_path.read_bytes()).decode("ascii")
+            content.append({"type": "input_audio", "input_audio": {"data": data, "format": fmt}})
+        messages: list[dict] = [{"role": "system", "content": system}] if system else []
+        messages.append({"role": "user", "content": content})
 
-        start = time.monotonic()
         response = await self.client.chat.completions.create(
             model=self.model,
             modalities=["text"],
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": self.prompt},
-                        {"type": "input_audio", "input_audio": {"data": data, "format": fmt}},
-                    ],
-                }
-            ],
+            messages=messages,
             temperature=0.0,
             max_tokens=4096,
         )
-        elapsed = (time.monotonic() - start) * 1000
-
         choice = response.choices[0]
         if choice.finish_reason == "content_filter":
             raise BlockedResponseError(
@@ -138,11 +142,51 @@ class OpenAIAudioTranscriber(BaseTranscriber):
             raise TruncatedResponseError(
                 f"OpenAI {self.model} truncou a resposta (finish_reason=length)"
             )
-        text = _clean(choice.message.content)
-        if not text:
+        out = _clean(choice.message.content)
+        if not out:
             raise RuntimeError(f"OpenAI {self.model} devolveu uma resposta vazia")
-        logger.debug(f"Transcription completed in {elapsed:.0f}ms")
+        return out
+
+
+AUDIO_LLMS: dict[str, type] = {"google": GeminiAudioLLM, "openai-audio": OpenAIAudioLLM}
+
+
+def get_audio_llm(provider: str, model: str) -> GeminiAudioLLM | OpenAIAudioLLM:
+    if provider not in AUDIO_LLMS:
+        raise ValueError(
+            f"Provedor multimodal desconhecido: '{provider}'. Disponíveis: {list(AUDIO_LLMS)}"
+        )
+    return AUDIO_LLMS[provider](model)
+
+
+class _MultimodalTranscriber(BaseTranscriber):
+    provider: str
+
+    def __init__(self, model: str, prompt: str | None = None) -> None:
+        self.model = model
+        self.prompt = multimodal_prompt(prompt)
+        self.llm = get_audio_llm(self.provider, model)
+
+    async def transcribe(self, audio_path: Path) -> str:
+        logger.debug(f"Transcribing {audio_path.name} with {self.model}")
+        start = time.monotonic()
+        text = await self.llm.complete(self.prompt, audio_path)
+        logger.debug(f"Transcription completed in {(time.monotonic() - start) * 1000:.0f}ms")
         return text
+
+
+class GeminiTranscriber(_MultimodalTranscriber):
+    provider = "google"
+
+    def __init__(self, model: str = "gemini-2.5-flash", prompt: str | None = None) -> None:
+        super().__init__(model, prompt)
+
+
+class OpenAIAudioTranscriber(_MultimodalTranscriber):
+    provider = "openai-audio"
+
+    def __init__(self, model: str = "gpt-audio", prompt: str | None = None) -> None:
+        super().__init__(model, prompt)
 
 
 MULTIMODAL_TRANSCRIBERS: dict[str, type[BaseTranscriber]] = {

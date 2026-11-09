@@ -48,9 +48,11 @@ ajustados às mesmas músicas em que são avaliados.
 
 | Etapa | Opções |
 |---|---|
-| Transcrição | `whisper-1`, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe` |
+| Transcrição | `whisper-1`, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`; LLMs que ouvem áudio (`gpt-audio`, Gemini) |
+| Consenso | a transcrição mais central entre várias rodadas |
 | Pré-processamento | `demucs` (isolamento de voz), `noisereduce`, `deepfilternet` (redução de ruído) |
 | Refinamento | OpenAI (GPT), Anthropic (Claude), Google (Gemini) |
+| Conferência com áudio | um LLM multimodal ouve a gravação e propõe alterações pontuais no rascunho |
 | Métricas | WER e CER (taxa de erro por palavra e caractere), BERTScore (similaridade semântica) |
 
 ## Instalação

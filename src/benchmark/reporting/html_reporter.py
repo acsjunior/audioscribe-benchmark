@@ -174,6 +174,44 @@ _TEMPLATE = """<!DOCTYPE html>
     </tbody>
   </table>
   {% endif %}
+
+  {% if analysis.verification and analysis.verification.methods %}
+  <h2>Conferência com Áudio: Alterações</h2>
+  <p class="note">
+    Cada alteração aplicada é testada <strong>sozinha</strong> sobre o rascunho:
+    <strong>útil</strong> se reduz o WER contra a letra, <strong>prejudicial</strong> se
+    aumenta. <strong>Falhas</strong> (bloqueio do provedor, resposta mal formada) saem da
+    análise pareada acima e só aparecem aqui. <strong>Reescritas</strong>: avaliações em
+    que mais de {{ "%.0f" | format(analysis.verification.max_change_fraction * 100) }}%
+    das palavras do rascunho mudaram.
+  </p>
+  <table>
+    <thead>
+      <tr>
+        <th>Variante</th><th class="num">Avaliações</th>
+        <th class="num">Falhas (bloqueio / formato / outras)</th>
+        <th class="num">Sem alteração</th>
+        <th class="num">Propostas / aplicadas</th>
+        <th class="num">Úteis / neutras / prejudiciais</th>
+        <th class="num">Reescritas</th><th>Principal motivo de rejeição</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in analysis.verification.methods %}
+      <tr>
+        <td>{{ m.model }} — {{ m.prompt }}</td>
+        <td class="num">{{ m.num_evaluations }}</td>
+        <td class="num">{{ m.num_failures }} ({{ m.failures.blocked }} / {{ m.failures.malformed }} / {{ m.failures.other }})</td>
+        <td class="num">{{ m.no_edit_responses }}</td>
+        <td class="num">{{ m.edits_proposed }} / {{ m.edits_applied }}</td>
+        <td class="num">{{ m.edits_helpful }} / {{ m.edits_neutral }} / {{ m.edits_harmful }}</td>
+        <td class="num">{{ m.rewrite_alerts }}</td>
+        <td>{% if m.rejection_reasons %}{{ (m.rejection_reasons | list)[0] }}{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
   {% endif %}
 
   <h2>Resultados por Música</h2>

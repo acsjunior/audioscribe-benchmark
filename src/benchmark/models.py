@@ -38,6 +38,8 @@ class ExperimentResult:
     response_time_ms: float | None = None
     run: int = 1
     split: str = "dev"
+    # Só na conferência com áudio (E7): rascunho, segmentos e destino de cada alteração.
+    verification: dict | None = None
 
     @property
     def evaluated_transcription(self) -> str:

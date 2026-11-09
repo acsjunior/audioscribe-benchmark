@@ -79,7 +79,12 @@ audioscribe-benchmark/
 │       │   ├── __init__.py
 │       │   ├── base.py           # BaseTranscriber (ABC)
 │       │   ├── whisper.py        # WhisperTranscriber (whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe)
+│       │   ├── multimodal.py     # GeminiAudioLLM/OpenAIAudioLLM + transcritores multimodais (E6)
 │       │   └── cache.py          # TranscriptionCache — cache em disco por configuração/rodada
+│       ├── verification/         # conferência com áudio (E7)
+│       │   ├── segments.py       # segment(): rascunho → segmentos numerados (determinístico)
+│       │   ├── edits.py          # parse_edits(), apply_edits(), EditParseError
+│       │   └── verifier.py       # Verifier, load_verification_prompt()
 │       ├── refinement/
 │       │   ├── __init__.py       # REFINER_REGISTRY, get_refiner()
 │       │   ├── base.py           # BaseRefiner, PromptConfig, load_prompt()
@@ -98,6 +103,7 @@ audioscribe-benchmark/
 │       │   ├── json_reporter.py  # write_json() / read_json()
 │       │   ├── stats.py          # analyze(): análise pareada contra o baseline (E2)
 │       │   ├── errors.py         # analyze_errors(): sub/omissão/inserção e alertas (E4)
+│       │   ├── edits.py          # analyze_edits(): falhas, precisão por alteração, reescritas (E7)
 │       │   └── html_reporter.py  # relatório HTML: ranking, análise estatística, comparações
 │       └── utils/
 │           ├── __init__.py
@@ -236,6 +242,17 @@ data/transcriptions/<modelo>__<pré-processamento|original>__<p+hash8 do prompt|
 
 ### Transcrição multimodal direta (E6)
 `transcription/multimodal.py`: `transcription.provider` aceita `whisper` (padrão, API de transcrição), `google` (`GeminiTranscriber`, áudio inline via `types.Part.from_bytes`) e `openai-audio` (`OpenAIAudioTranscriber`, Chat Completions com `input_audio`, `modalities=["text"]`; modelos `gpt-audio`, `gpt-audio-mini` — o `gpt-4o-audio-preview` não existe mais na conta). É o **grupo de controle do E7**: separa "modelo que ouve melhor" de "conferir rascunho com o áudio". O prompt padrão (`DEFAULT_MULTIMODAL_PROMPT`) é neutro, **sem título, autoria ou intérprete**, para não permitir acerto por memorização; `transcription_prompt` o substitui, e o prompt efetivo entra na chave do cache. Só `.mp3` e `.wav` (aceitos pelas duas APIs). Bloqueio (`RECITATION`/`SAFETY`/`content_filter`) → `BlockedResponseError`, truncamento → `TruncatedResponseError`, resposta vazia → `RuntimeError`. A saída tem os espaços de fim de linha removidos. Verificado ao vivo só com `gpt-audio` (1 música); o caminho do Gemini está coberto por testes com mock, mas **não foi executado com a API real** (sem `GOOGLE_API_KEY` no `.env`).
+
+### Conferência com áudio (E7)
+Bloco `verification:` (lista; uma entrada por variante): `provider` (`openai-audio` | `google`), `model`, `prompt_file` (`prompts/verification/`), `audio` (`original` = MP3 do catálogo, mesmo se a transcrição usou pré-processamento | `isolated` = demucs sobre o original, calculado uma vez por música | `none` = controle só com texto), `metadata` (bool), `draft` (`run` | `consensus`; consenso exige `runs >= 3`, validado no schema), `max_runs` (confere só as N primeiras rodadas).
+
+- **Fluxo** (`verification/`): rascunho → `segment()` (corta em pontuação/fim de linha a partir de 8 palavras, força em 15; os rascunhos do `gpt-4o-transcribe` vêm num parágrafo só) → modelo multimodal com `system` + mensagem (marcadores `{segments}`, `{metadata}`, `{audio_note}` trocados por `str.replace`, porque o prompt contém JSON) → `parse_edits()` → `apply_edits()`.
+- **Operações**: `replace`/`delete` (com `old`, que precisa aparecer **uma única vez** no segmento como palavras inteiras) e `insert` (depois do segmento N; 0 = início). Rejeitadas com motivo: segmento inexistente, trecho não encontrado/ambíguo, sem efeito, sobreposta. O modelo nunca reescreve o texto.
+- **Resposta mal formada = erro** (`EditParseError`), nunca "nenhuma alteração" (seria um falso empate). "Nenhuma alteração" só com `{"edits": []}` explícito.
+- **Resultado**: linha com `refinement_provider = "verify:<provider>"`, `prompt_name = "<prompt> · áudio=… · meta=… · rascunho=…"`, uma por rodada conferida (pareada com o baseline da rodada). Campo `verification` no JSON: rascunho, segmentos, alterações com destino, resposta bruta. CSV: `edits_proposed`, `edits_applied`. Erros gravados como `"<Classe>: mensagem"`.
+- **Auditoria** (`reporting/edits.py`, chave `verification` do `stats.json`, seção "Conferência com Áudio" do HTML): falhas por tipo (bloqueio/formato/outras — saem da análise pareada, por isso ficam aqui), respostas sem alteração, propostas/aplicadas/motivos de rejeição, **precisão por alteração** (cada alteração aplicada sozinha sobre o rascunho: útil/neutra/prejudicial pelo WER) e alertas de reescrita (`analysis.max_change_fraction`, padrão 0,3).
+- **Comparações do estudo**: conferência vs. baseline; vs. E6 **do mesmo modelo** (efeito de conferir, além de ouvir melhor); vs. `audio: none` (efeito do áudio); com vs. sem metadados (memorização).
+- **Teste ao vivo** (`gpt-audio`, 2 músicas, rascunhos antigos): `alcides-gerardi-antonico` WER 0,089 → 0,041 (10 alterações, sem bloqueio); `francisco-alves-que-infeliz-sorte` 0,549 → 0,522. O modelo propôs uma alteração só de pontuação (proibida no prompt), nenhum `delete` no rascunho longo demais, e `heard` sempre "nitidamente X" — não é evidência. Ajustar o prompt no piloto (3 músicas dev) antes da bateria.
 
 ### Split dev/test
 A coluna `Split` do catálogo separa as músicas de desenvolvimento (ajuste de prompts e métodos) das de teste (rodadas uma vez, no final, com tudo congelado). O YAML usa `split: dev` por padrão. Rodar o teste exige `split: test` (ou `all`) explicitamente, para evitar contaminação acidental. Ver `ROADMAP.md`.
