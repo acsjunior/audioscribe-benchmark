@@ -132,6 +132,35 @@ _TEMPLATE = """<!DOCTYPE html>
   {% else %}
   <p class="note">Nenhum método de refinamento para comparar com o baseline.</p>
   {% endif %}
+
+  <p class="note">Distribuição sobre as músicas (valor de cada música = média das rodadas).
+    Para os métodos, também a distribuição do <strong>ganho</strong> contra o baseline.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Método</th><th>Prompt</th><th>Grandeza</th>
+        <th class="num">Média</th><th class="num">Desvio padrão</th><th class="num">Mín</th>
+        <th class="num">Q1</th><th class="num">Mediana (Q2)</th><th class="num">Q3</th><th class="num">Máx</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set d = ma.baseline.distribution %}
+      <tr>
+        <td>baseline</td><td>—</td><td>{{ metric | upper }}</td>
+        <td class="num">{{ num(d.mean) }}</td><td class="num">{{ num(d.std) }}</td><td class="num">{{ num(d.min) }}</td>
+        <td class="num">{{ num(d.q1) }}</td><td class="num">{{ num(d.median) }}</td><td class="num">{{ num(d.q3) }}</td><td class="num">{{ num(d.max) }}</td>
+      </tr>
+      {% for m in ma.methods %}
+      {% for label, d in [(metric | upper, m.distribution), ("ganho", m.gain_distribution)] %}
+      <tr>
+        <td>{{ m.provider }}/{{ m.model }}</td><td>{{ m.prompt or "—" }}</td><td>{{ label }}</td>
+        <td class="num">{{ num(d.mean) }}</td><td class="num">{{ num(d.std) }}</td><td class="num">{{ num(d.min) }}</td>
+        <td class="num">{{ num(d.q1) }}</td><td class="num">{{ num(d.median) }}</td><td class="num">{{ num(d.q3) }}</td><td class="num">{{ num(d.max) }}</td>
+      </tr>
+      {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
   {% endfor %}
 
   {% if analysis.errors and analysis.errors.methods %}

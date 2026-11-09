@@ -1,6 +1,6 @@
 # Protocolo do Estudo
 
-**Status:** rascunho (v0.1, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
+**Status:** rascunho (v0.2, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
 decisão antes das execuções oficiais. Quando todos estiverem resolvidos, o protocolo é
 congelado (versão 1.0, com data e commit). A partir daí, qualquer mudança é registrada
 na seção 12, com justificativa, e reportada no trabalho.
@@ -38,6 +38,14 @@ Cada hipótese compara **uma** configuração escolhida no conjunto de desenvolv
 
 H2 e H3 só são interpretadas se H1 for confirmada.
 
+**Sobre H3.** A conferência usa um modelo multimodal (ex.: `gpt-audio`) que recebe o
+áudio *e* o rascunho. Se ela ganhar do rascunho, há duas explicações possíveis: (a)
+conferir um rascunho ajuda; ou (b) o modelo multimodal simplesmente ouve melhor que o
+transcritor do rascunho, e daria o mesmo resultado transcrevendo sozinho. H3 separa as
+duas: o mesmo modelo transcreve direto, só com o áudio (E6). Se a conferência não superar
+essa transcrição direta, o ganho é do modelo, não do método de conferência — e o método
+mais simples (transcrever direto com ele) seria a recomendação.
+
 ### Exploratórias (relatadas como tais, sem pretensão confirmatória)
 
 - Efeito dos metadados (título, autoria, intérprete) na conferência: memorização.
@@ -71,12 +79,28 @@ gravação. O critério 3 vale de qualquer forma; o filtro serve só para gerar 
 
 Uma candidata é excluída, **antes** de qualquer transcrição, se:
 
-- mais de **[PENDENTE: proposta 25%]** da duração for instrumental ou falada;
+- a **fração cantada** da gravação for menor que **[EM DISCUSSÃO]** (ver abaixo);
 - o áudio estiver incompleto, cortado ou com defeito que impeça ouvir a letra;
 - não for possível estabelecer a letra de referência pelo procedimento da seção 4
   (trechos inaudíveis acima do limite da seção 4.3);
 - for outra gravação da mesma composição já incluída (no máximo uma gravação por
   composição).
+
+**Fração cantada.** Estimada por `scripts/sung_fraction.py`: energia da faixa de voz
+isolada pelo demucs, em janelas de 50 ms, com limiar relativo à própria gravação (p95
+− 20 dB) e suavização (pausas < 1 s contam como canto). Nas 28 músicas do dev:
+
+| Limiar | Média | DP | Mín | Q1 | Mediana | Q3 | Máx |
+|---|---|---|---|---|---|---|---|
+| 15 dB | 62,6% | 11,7 | 28,1% | 58,1% | 63,4% | 71,2% | 83,8% |
+| **20 dB** | **64,8%** | **10,8** | **34,4%** | **59,6%** | **66,1%** | **71,9%** | **85,5%** |
+| 25 dB | 66,2% | 10,7 | 39,0% | 59,9% | 67,1% | 73,0% | 86,0% |
+
+A estimativa é estável entre limiares (variação de poucos pontos por música). Uma
+gravação típica do período tem cerca de um terço de introdução e interlúdios
+instrumentais. Um corte em 75% cantado excluiria 25 das 28 músicas; os candidatos
+razoáveis estão entre 40% (exclui 1) e 50% (exclui 2). Casos-limite são confirmados
+ouvindo a gravação.
 
 Exclusões e motivos são registrados (seção 3.4). Nenhuma música é excluída depois de
 transcrita por causa do resultado.
@@ -99,7 +123,12 @@ transcrita por causa do resultado.
 - se uma sorteada for excluída pelos critérios da seção 3.2, entra a próxima da ordem do
   sorteio no mesmo estrato.
 
-**[PENDENTE]** Tamanho do teste: mínimo 32, ideal 40–45 músicas.
+**Tamanho:** não é fixado de antemão. A base será enriquecida com o máximo de músicas
+possível, e o número final de músicas do teste é registrado no congelamento (seção 8),
+antes de qualquer execução no teste. Referência mínima: 32 músicas.
+
+**[EM DISCUSSÃO]** Com a base crescendo, rever se todas as músicas novas vão para o teste
+ou se parte reforça o dev, e se o limite de 3 por intérprete descarta músicas demais.
 
 O dev e o teste não compartilham composições.
 
@@ -139,7 +168,11 @@ Para cada música, **antes** de ver qualquer transcrição automática dela:
    - **falas e cacos**: **[PENDENTE]** incluir ou não falas do intérprete (anúncios,
      "breques", interjeições soltas como "ô", "ai").
 4. Ouvir uma segunda vez, inteira, conferindo a versão final.
-5. Registrar a data e o responsável em `LetraConferida`.
+5. **Decidir a inclusão**: depois da audição completa, a música pode ser **excluída** se
+   tiver trechos de dúvida ou inaudíveis (seção 4.3). Essa decisão é tomada **antes** de
+   qualquer transcrição automática da música, para não depender de o modelo ter acertado
+   ou errado ali; o motivo é registrado em `Exclusao`.
+6. Registrar a data e o responsável em `LetraConferida`.
 
 O passo 3 de repetições é importante: no baseline exploratório, 12% das palavras que a
 transcrição tinha a mais formavam trechos que existem na letra. Pelo menos parte disso
@@ -154,17 +187,12 @@ transcrição tinha a mais formavam trechos que existem na letra. Pelo menos par
 - Pontuação e quebras de linha são livres: a avaliação ignora pontuação, maiúsculas e
   quebras de linha (seção 6.2).
 
-### 4.3 Trechos inaudíveis
+### 4.3 Trechos inaudíveis ou duvidosos
 
-**[PENDENTE]** Duas opções:
-
-- **(a)** registrar o melhor palpite e marcar a música com baixa confiança, analisada
-  à parte;
-- **(b)** marcar o trecho como inaudível e excluir a música se ele passar de um limite
-  (por exemplo, 5% das palavras).
-
-Proposta: (b) para o teste, com limite de 5%; isso evita penalizar ou premiar o modelo
-por um palpite do anotador.
+A letra de referência só contém trechos que o anotador ouviu com segurança. Se a
+gravação tiver trechos de dúvida ou inaudíveis, a música é excluída (passo 5 da seção
+4.1), em vez de entrar com um palpite: um palpite errado penalizaria uma transcrição
+correta, e um certo premiaria a memorização.
 
 ### 4.4 Concordância entre anotadores (recomendado)
 
@@ -190,6 +218,11 @@ contra ≈ 0,27), mas com uma rodada só.
 **Prompt de transcrição:** o `gpt-4o-transcribe` usa o prompt padrão do código
 (`DEFAULT_PROMPT_GPT4O_TRANSCRIBE`), que descreve o gênero e a época e cita artistas do
 período, mas não a música transcrita. Fica fixo para todas as músicas.
+
+**Áudio anônimo:** todo áudio é enviado aos modelos com nome de arquivo neutro
+(`audio.mp3`) e sem tags ID3 (`audio_utils.py`). Sem isso, a API de transcrição recebe o
+nome do arquivo, que é "Música - Intérprete.mp3". Metadados só chegam ao modelo quando a
+variante os inclui explicitamente no prompt (seção 10).
 
 **Prompts de conferência:** ajustados **só no dev** (piloto, seção 8). O prompt usado no
 teste é congelado com nome e hash.
@@ -233,18 +266,15 @@ hífen: "corda-bamba" vira "corda bamba"); espaços e quebras de linha colapsado
 
 ### 7.3 Teste das hipóteses
 
-Para cada hipótese confirmatória, sobre os ganhos por música no conjunto de teste:
-
-- estimativa principal: **ganho mediano**, com intervalo de confiança de 95% por
-  bootstrap percentil (10.000 reamostragens de músicas, semente 0);
-- teste: **Wilcoxon** de postos sinalizados, bilateral; empates descartados;
-- correção para múltiplas comparações: **Holm** sobre os três p-valores
-  confirmatórios (H1–H3), α = 0,05.
+**[EM DISCUSSÃO]** Escolha do teste estatístico e da correção para múltiplas
+comparações (proposta inicial: Wilcoxon e Holm). A decisão, com a justificativa, entra
+aqui.
 
 **Critério de sucesso (H1):** a hipótese é confirmada se, ao mesmo tempo:
 
-1. o p-valor de Wilcoxon corrigido por Holm for menor que 0,05;
-2. o limite inferior do IC 95% do ganho mediano for maior que zero;
+1. o teste escolhido acima rejeitar a hipótese nula, já com a correção para
+   múltiplas comparações, a α = 0,05;
+2. o limite inferior do IC 95% do efeito estimado for maior que zero;
 3. a taxa de falhas graves (avaliações em que o WER piora mais de 0,2 em relação ao
    rascunho) for no máximo **[PENDENTE: proposta 5%]**. A média esconde falhas raras e
    catastróficas; este critério impede que um método que melhora pouco quase sempre e
@@ -273,8 +303,12 @@ de 0,02 de WER, cerca de 3 palavras numa letra mediana de 157 palavras).
 
 ### 7.5 Relatório
 
-Para cada método: média e mediana do WER, ganho médio e mediano com IC, vitórias /
-empates / derrotas, p-valor, falhas graves, falhas do provedor e piores casos. Os
+Para cada método, sobre as músicas:
+
+- **distribuição** do WER e do ganho: média, desvio padrão, mínimo, Q1, mediana (Q2),
+  Q3 e máximo;
+- ganho médio e mediano com IC, vitórias / empates / derrotas, p-valor;
+- falhas graves, falhas do provedor e piores casos. Os
 resultados do dev são relatados à parte e rotulados como desenvolvimento.
 
 ## 8. Ordem das execuções
@@ -312,10 +346,17 @@ resultado (ponto de decisão do roadmap sobre E8/E9).
 
 ## 10. Ameaças à validade
 
-- **Memorização**: os modelos podem conhecer letras famosas. Mitigação: as variantes
-  principais não recebem metadados; o efeito dos metadados é medido à parte. Um modelo
-  ainda pode reconhecer a música pelo áudio; isso não é controlável e é relatado como
-  limitação.
+- **Memorização**: os modelos podem conhecer letras famosas e "acertar" sem ouvir.
+  Mitigação em duas partes:
+  1. **por padrão, nada identifica a música**: áudio com nome neutro e sem tags ID3, e
+     prompts sem título, autoria, intérprete ou ano;
+  2. **efeito medido**: a mesma variante de conferência roda com e sem metadados
+     (`metadata: true/false`), sobre os mesmos rascunhos e o mesmo áudio. A diferença
+     pareada entre as duas estima quanto do resultado vem de o modelo saber qual é a
+     música. Hipótese exploratória.
+
+  Um modelo ainda pode reconhecer a música pelo próprio áudio; isso não é controlável e
+  é relatado como limitação.
 - **Referência imperfeita**: mitigada pelo procedimento da seção 4 e pela concordância
   entre anotadores (4.4).
 - **Não determinismo das APIs**: mesmo com temperatura 0, as respostas variam; mitigado
@@ -340,3 +381,4 @@ causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio n�
 | Versão | Data | Alteração | Motivo |
 |---|---|---|---|
 | 0.1 | 09/11/2026 | Rascunho inicial | — |
+| 0.2 | 09/11/2026 | H3 explicada; fração cantada medida no dev (3.2); tamanho do teste em aberto (3.3); exclusão por trechos duvidosos após a audição, antes da transcrição (4.1, 4.3); áudio anônimo (5, 10); distribuição completa no relatório (7.5); teste estatístico em discussão (7.3) | Revisão do rascunho |

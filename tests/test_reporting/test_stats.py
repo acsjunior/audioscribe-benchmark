@@ -1,5 +1,6 @@
 import json
 
+import numpy as np
 import pytest
 from click.testing import CliRunner
 from pydantic import ValidationError
@@ -305,3 +306,17 @@ def test_cli_analyze_custom_output_and_threshold(tmp_path):
     assert stats["settings"]["severe_failure_threshold"] == 0.1
     assert stats["metrics"]["wer"]["methods"][0]["severe_failures"] == 1
     assert not (tmp_path / "stats.json").exists()
+
+
+
+def test_distribution_summary():
+    from benchmark.reporting.stats import distribution
+
+    d = distribution(np.array([0.1, 0.2, 0.3, 0.4, 0.5]))
+    assert d["mean"] == pytest.approx(0.3)
+    assert d["std"] == pytest.approx(np.std([0.1, 0.2, 0.3, 0.4, 0.5], ddof=1))
+    assert (d["min"], d["q1"], d["median"], d["q3"], d["max"]) == pytest.approx(
+        (0.1, 0.2, 0.3, 0.4, 0.5)
+    )
+    assert distribution(np.array([]))["mean"] is None
+    assert distribution(np.array([0.2]))["std"] is None

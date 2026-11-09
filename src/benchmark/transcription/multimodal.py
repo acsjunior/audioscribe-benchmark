@@ -25,6 +25,7 @@ from google import genai
 from google.genai import types
 from openai import AsyncOpenAI
 
+from ..audio_utils import anonymous_audio
 from ..refinement.base import BlockedResponseError, TruncatedResponseError
 from ..refinement.google import BLOCKED_FINISH_REASONS
 from .base import BaseTranscriber
@@ -75,7 +76,7 @@ class GeminiAudioLLM:
         parts = [types.Part(text=text)]
         if audio_path is not None:
             mime = AUDIO_MIME_TYPES[_suffix(audio_path, AUDIO_MIME_TYPES)]
-            parts.append(types.Part.from_bytes(data=audio_path.read_bytes(), mime_type=mime))
+            parts.append(types.Part.from_bytes(data=anonymous_audio(audio_path)[1], mime_type=mime))
         config = types.GenerateContentConfig(temperature=0.0)
         if system:
             config.system_instruction = system
@@ -121,7 +122,7 @@ class OpenAIAudioLLM:
         content: list[dict] = [{"type": "text", "text": text}]
         if audio_path is not None:
             fmt = OPENAI_AUDIO_FORMATS[_suffix(audio_path, OPENAI_AUDIO_FORMATS)]
-            data = base64.b64encode(audio_path.read_bytes()).decode("ascii")
+            data = base64.b64encode(anonymous_audio(audio_path)[1]).decode("ascii")
             content.append({"type": "input_audio", "input_audio": {"data": data, "format": fmt}})
         messages: list[dict] = [{"role": "system", "content": system}] if system else []
         messages.append({"role": "user", "content": content})

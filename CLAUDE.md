@@ -254,6 +254,12 @@ Bloco `verification:` (lista; uma entrada por variante): `provider` (`openai-aud
 - **Comparações do estudo**: conferência vs. baseline; vs. E6 **do mesmo modelo** (efeito de conferir, além de ouvir melhor); vs. `audio: none` (efeito do áudio); com vs. sem metadados (memorização).
 - **Teste ao vivo** (`gpt-audio`, 2 músicas, rascunhos antigos): `alcides-gerardi-antonico` WER 0,089 → 0,041 (10 alterações, sem bloqueio); `francisco-alves-que-infeliz-sorte` 0,549 → 0,522. O modelo propôs uma alteração só de pontuação (proibida no prompt), nenhum `delete` no rascunho longo demais, e `heard` sempre "nitidamente X" — não é evidência. Ajustar o prompt no piloto (3 músicas dev) antes da bateria.
 
+### Áudio anônimo
+`audio_utils.py::anonymous_audio()` é o único caminho do áudio para as APIs: nome neutro (`audio.mp3`/`audio.wav`; a API de transcrição recebe o nome do arquivo no upload, que seria "Música - Intérprete.mp3") e MP3 sem tags ID3v2/ID3v1 (`strip_id3`). Usado por `WhisperTranscriber` (passa `file=(nome, bytes)`) e pelos clientes multimodais. Metadados só chegam ao modelo via `verification[].metadata: true`. Motivo: o estudo mede memorização comparando com/sem metadados (PROTOCOLO seção 10).
+
+### Fração cantada
+`scripts/sung_fraction.py <mp3s>`: estimativa da fração da duração com voz (critério de inclusão, PROTOCOLO 3.2), a partir do `*_vocals.wav` do demucs (gerado se faltar): RMS em janelas de 50 ms, limiar p95 − 20 dB (mostra também 15 e 25), mediana 0,5 s, fecha pausas < 1 s, remove ilhas < 0,5 s. No dev: mediana 66%, mín 34%.
+
 ### Split dev/test
 A coluna `Split` do catálogo separa as músicas de desenvolvimento (ajuste de prompts e métodos) das de teste (rodadas uma vez, no final, com tudo congelado). O YAML usa `split: dev` por padrão. Rodar o teste exige `split: test` (ou `all`) explicitamente, para evitar contaminação acidental. Ver `ROADMAP.md`.
 
@@ -279,6 +285,7 @@ Cada métrica implementa `BaseMetric` e é registrada em `METRIC_REGISTRY`. Mét
 - **Unidade de análise = música**: o ganho por música é a média do ganho nas rodadas, porque rodadas da mesma música não são independentes.
 - Por método: ganho médio e mediano, cada um com IC por bootstrap percentil (reamostrando músicas; `seed` fixo → determinístico), melhorou/empatou/piorou, p-valor de Wilcoxon (empates descartados; **sem correção para múltiplas comparações**) e falhas graves.
 - **Falha grave** = avaliação (música × rodada) com piora maior que `analysis.severe_failure_threshold` (padrão 0,2) — a revisão com LLM costuma melhorar quase todas as músicas e destruir algumas; a média esconde isso, a mediana e a taxa de falhas graves não. `worst_cases` lista as 3 piores.
+- `distribution` (baseline e métodos) e `gain_distribution` (métodos): média, desvio padrão, mín, Q1, mediana, Q3, máx sobre as médias por música; tabela de distribuição no HTML.
 - Baseline: média, mediana, desvio entre músicas e `mean_std_between_runs` (desvio médio entre rodadas de uma mesma música, o "ruído" da transcrição; `null` com 1 rodada).
 - Métodos saem ordenados pelo ganho mediano. Avaliações com erro ou métrica nula e linhas sem baseline pareado são ignoradas.
 - Configuração no YAML: bloco `analysis` (`bootstrap_samples`, `confidence`, `seed`, `severe_failure_threshold`, `length_ratio_min`, `length_ratio_max`). Se a análise falhar, o pipeline registra um aviso e ainda grava CSV/JSON/HTML.

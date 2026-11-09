@@ -91,6 +91,22 @@ def _per_song(values: dict[tuple[str, int], float]) -> dict[str, list[float]]:
     return by_song
 
 
+def distribution(values: np.ndarray) -> dict:
+    """Média, desvio padrão, mínimo, quartis e máximo (sobre músicas)."""
+    if len(values) == 0:
+        return dict.fromkeys(("mean", "std", "min", "q1", "median", "q3", "max"))
+    q1, median, q3 = np.quantile(values, [0.25, 0.5, 0.75])
+    return {
+        "mean": float(np.mean(values)),
+        "std": float(np.std(values, ddof=1)) if len(values) > 1 else None,
+        "min": float(np.min(values)),
+        "q1": float(q1),
+        "median": float(median),
+        "q3": float(q3),
+        "max": float(np.max(values)),
+    }
+
+
 def _value_summary(values: dict[tuple[str, int], float]) -> dict:
     """Resumo de uma métrica sobre músicas: média, mediana, dispersão e ruído entre rodadas."""
     by_song = _per_song(values)
@@ -103,6 +119,7 @@ def _value_summary(values: dict[tuple[str, int], float]) -> dict:
         "median": float(np.median(song_means)) if len(song_means) else None,
         "std_between_songs": float(np.std(song_means, ddof=1)) if len(song_means) > 1 else None,
         "mean_std_between_runs": float(np.mean(within)) if within else None,
+        "distribution": distribution(song_means),
     }
 
 
@@ -144,6 +161,7 @@ def _analyze_method(
         "gain_median": float(np.median(song_gain_array)),
         "gain_median_ci": gain_median_ci,
         "gain_median_sig": _ci_sign(gain_median_ci),
+        "gain_distribution": distribution(song_gain_array),
         "wins": wins,
         "ties": len(song_gain_array) - wins - losses,
         "losses": losses,

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from openai import AsyncOpenAI
 
+from ..audio_utils import anonymous_audio
 from .base import BaseTranscriber
 
 logger = logging.getLogger("benchmark")
@@ -69,8 +70,10 @@ class WhisperTranscriber(BaseTranscriber):
         if effective_prompt is not None:
             kwargs["prompt"] = effective_prompt
 
-        with open(audio_path, "rb") as f:
-            response = await self.client.audio.transcriptions.create(file=f, **kwargs)
+        # Nome neutro e sem tags: o nome do arquivo identificaria a música.
+        response = await self.client.audio.transcriptions.create(
+            file=anonymous_audio(audio_path), **kwargs
+        )
 
         elapsed = (time.monotonic() - start) * 1000
         logger.debug(f"Transcription completed in {elapsed:.0f}ms")

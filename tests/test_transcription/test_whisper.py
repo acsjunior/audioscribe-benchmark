@@ -180,3 +180,18 @@ async def test_gpt4o_mini_transcribe_no_prompt_not_sent(mock_openai_cls, audio_f
 
     call_kwargs = mock_client.audio.transcriptions.create.call_args.kwargs
     assert "prompt" not in call_kwargs
+
+
+@patch("benchmark.transcription.whisper.AsyncOpenAI")
+async def test_transcribe_sends_neutral_filename(mock_openai_cls, tmp_path):
+    mock_client = MagicMock()
+    mock_client.audio.transcriptions.create = AsyncMock(return_value=MagicMock(text="x"))
+    mock_openai_cls.return_value = mock_client
+    named = tmp_path / "A Malandragem - Francisco Alves.mp3"
+    named.write_bytes(b"fake audio content")
+
+    await WhisperTranscriber(model="whisper-1").transcribe(named)
+
+    name, data = mock_client.audio.transcriptions.create.call_args.kwargs["file"]
+    assert name == "audio.mp3"
+    assert data == b"fake audio content"
