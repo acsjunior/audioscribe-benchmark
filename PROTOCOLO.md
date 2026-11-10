@@ -1,6 +1,6 @@
 # Protocolo do Estudo
 
-**Status:** rascunho (v0.7, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
+**Status:** rascunho (v0.8, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
 decisão antes das execuções oficiais. Quando todos estiverem resolvidos, o protocolo é
 congelado (versão 1.0, com data e commit). A partir daí, qualquer mudança é registrada
 na seção 13, com justificativa, e reportada no trabalho.
@@ -163,7 +163,20 @@ por script (semente registrada, lista e data de acesso no repositório), e não 
 uma a uma. Assim o número final de músicas, qualquer que seja, continua sendo uma
 amostra aleatória das candidatas.
 
-O dev e o teste não compartilham composições.
+**Composições entre dev e teste.** Uma composição usada no dev não entra no teste, nem
+em outra gravação: ajustar prompts no dev com uma letra que depois aparece no teste (na
+voz de outro intérprete) contaminaria a avaliação.
+
+**Mesma composição** = mesmo título e mesma autoria, comparados após normalização
+(minúsculas, sem acentos e pontuação, sem subtítulos entre parênteses, autores em
+qualquer ordem), com revisão manual dos grupos encontrados. Títulos iguais com autores
+diferentes são composições diferentes. No pool de 10/11/2026 há ~21 composições com
+mais de uma gravação, quase sempre um original dos anos 1920–30 e uma regravação de
+1946–1955.
+
+**[PENDENTE]** Qual gravação fica quando há várias: proposta de **sorteio** (a primeira
+na ordem aleatória geral), para não puxar a amostra para os originais nem para as
+regravações.
 
 ### 3.4 Registro no catálogo
 
@@ -509,6 +522,7 @@ causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio n�
 | Versão | Data | Alteração | Motivo |
 |---|---|---|---|
 | 0.1 | 09/11/2026 | Rascunho inicial | — |
+| 0.8 | 10/11/2026 | Dev e teste não compartilham composições, nem em outra gravação; definição de "mesma composição" (3.3) | Discussão da amostragem |
 | 0.7 | 09/11/2026 | Critério de corte por número mínimo de palavras, fração cantada só registrada (3.2); ordem aleatória de conferência (3.3); falas, breques e interjeições (4.1); interjeições e equivalências de grafia na normalização (6.2) | Decisões da revisão do protocolo |
 | 0.6 | 09/11/2026 | Filtro de domínio público do site documentado (3.1); limite por intérprete só no teste, excedente vai para o dev (3.3); contrações como cantadas + equivalências na normalização (4.2); segunda pessoa confere 20% (4.4) | Decisões da revisão do protocolo |
 | 0.5 | 09/11/2026 | Critério 3 (7.3): teto fixo de falhas graves trocado por "sem dano líquido demonstrado" no WER do corpus; taxa de falhas graves relatada com IC de Clopper–Pearson | Instabilidade do teto fixo na simulação de poder |
