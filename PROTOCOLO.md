@@ -1,6 +1,6 @@
 # Protocolo do Estudo
 
-**Status:** rascunho (v0.8, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
+**Status:** rascunho (v0.9, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
 decisão antes das execuções oficiais. Quando todos estiverem resolvidos, o protocolo é
 congelado (versão 1.0, com data e commit). A partir daí, qualquer mudança é registrada
 na seção 13, com justificativa, e reportada no trabalho.
@@ -62,8 +62,9 @@ mais simples (transcrever direto com ele) seria a recomendação.
 
 Uma gravação entra no estudo se cumprir **todos** os critérios:
 
-1. **Gênero**: samba (classificação da Discografia Brasileira).
-2. **Gravação** de 1955 ou antes.
+1. **Gênero**: classificado como exatamente "Samba" na Discografia Brasileira (sem
+   variações como "Samba Canção", "Samba Choro", "Samba Batuque").
+2. **Gravação** entre **1928** e 1955 (era da gravação elétrica; ver abaixo).
 3. **Domínio público**: todos os autores (letra e música) faleceram em 1955 ou antes. Em
    coautoria, conta o último coautor a falecer. Isso é verificado música a música, com o
    ano de morte de cada autor e a fonte registrados no catálogo (seção 3.4).
@@ -79,6 +80,22 @@ Lei 9.610/98: 70 anos contados de 1º de janeiro do ano seguinte à morte do aut
 cita a lei, e chama a marcação de trabalho "em aberto". Por isso o filtro serve para
 gerar candidatas, e o ano de morte do último autor é conferido música a música
 (seção 3.4).
+
+**Por que a partir de 1928.** Até cerca de 1927 as gravações brasileiras eram
+*mecânicas* (acústicas): o som era captado por uma corneta, sem microfone nem
+amplificação, com faixa de frequências estreita que corta justamente os agudos onde
+ficam as consoantes que distinguem palavras. A gravação elétrica chegou ao Brasil em
+1927, e 1927 é um ano de transição. Incluir a era mecânica somaria ao estudo uma
+segunda fonte grande de variação (outro tipo de áudio, outra dificuldade, inclusive para
+estabelecer a letra de referência), que se confundiria com o efeito dos métodos. O
+recorte mantém o foco na hipótese principal; a era mecânica fica como extensão futura.
+
+**Pool resultante** (catálogo extraído em 10/11/2026 com o db-scraper): 546 candidatas →
+469 com gênero exatamente "Samba" → 312 gravadas de 1928 em diante, das quais ~292 com
+cantor (estimativa pelo nome do intérprete, a confirmar na audição). Por década (com
+cantor): 1920s 83, 1930s 152, 1940s 26, 1950s 31. ~263 composições distintas, 20 delas
+com mais de uma gravação. 103 intérpretes (Francisco Alves 62, Mário Reis 34, Aracy de
+Almeida 22); 66 autores, com Noel Rosa e Sinhô em 38% das gravações.
 
 ### 3.2 Critérios de exclusão
 
@@ -522,6 +539,7 @@ causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio n�
 | Versão | Data | Alteração | Motivo |
 |---|---|---|---|
 | 0.1 | 09/11/2026 | Rascunho inicial | — |
+| 0.9 | 10/11/2026 | Gênero exatamente "Samba" e gravação a partir de 1928, com justificativa (era elétrica); pool resultante documentado (3.1) | Discussão da amostragem |
 | 0.8 | 10/11/2026 | Dev e teste não compartilham composições, nem em outra gravação; definição de "mesma composição" (3.3) | Discussão da amostragem |
 | 0.7 | 09/11/2026 | Critério de corte por número mínimo de palavras, fração cantada só registrada (3.2); ordem aleatória de conferência (3.3); falas, breques e interjeições (4.1); interjeições e equivalências de grafia na normalização (6.2) | Decisões da revisão do protocolo |
 | 0.6 | 09/11/2026 | Filtro de domínio público do site documentado (3.1); limite por intérprete só no teste, excedente vai para o dev (3.3); contrações como cantadas + equivalências na normalização (4.2); segunda pessoa confere 20% (4.4) | Decisões da revisão do protocolo |
