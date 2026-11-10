@@ -1,6 +1,6 @@
 # Protocolo do Estudo
 
-**Status:** rascunho (v0.5, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
+**Status:** rascunho (v0.6, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
 decisão antes das execuções oficiais. Quando todos estiverem resolvidos, o protocolo é
 congelado (versão 1.0, com data e commit). A partir daí, qualquer mudança é registrada
 na seção 13, com justificativa, e reportada no trabalho.
@@ -71,9 +71,14 @@ Uma gravação entra no estudo se cumprir **todos** os critérios:
 5. **Letra cantada**: a gravação tem voz cantada em português durante a maior parte da
    duração.
 
-**[PENDENTE]** Confirmar como a Discografia Brasileira calcula o "ano de domínio
-público" do filtro (`publicDomainYear`): se considera os autores da obra ou só a
-gravação. O critério 3 vale de qualquer forma; o filtro serve só para gerar candidatas.
+**Filtro da Discografia Brasileira.** Segundo o site (post de 18/12/2024), são de domínio
+público "as gravações lançadas há pelo menos 70 anos, de músicas cujos compositores
+faleceram há 70 anos ou mais" — os mesmos dois critérios deste protocolo (2 e 3), e os da
+Lei 9.610/98: 70 anos contados de 1º de janeiro do ano seguinte à morte do autor (art.
+41) e à publicação do fonograma (art. 96). O site não explica como trata coautorias nem
+cita a lei, e chama a marcação de trabalho "em aberto". Por isso o filtro serve para
+gerar candidatas, e o ano de morte do último autor é conferido música a música
+(seção 3.4).
 
 ### 3.2 Critérios de exclusão
 
@@ -145,8 +150,14 @@ efeitos de 0,01 pedem ~85–100. A simulação é conservadora no ruído (rodada
 várias rodadas por música ele diminui) e assume para H2/H3 o mesmo δ de H1, o que é
 otimista. **Refazer com os ganhos da conferência (E7) no dev antes do congelamento.**
 
-**[EM DISCUSSÃO]** Com a base crescendo, rever se todas as músicas novas vão para o teste
-ou se parte reforça o dev, e se o limite de 3 por intérprete descarta músicas demais.
+**Limite por intérprete.** O limite de 3 músicas por intérprete vale **só para o teste**,
+para que intérpretes prolíficos (Francisco Alves, Orlando Silva) não dominem a
+avaliação. Músicas conferidas que excederem o limite vão para o **dev**, em vez de
+serem descartadas: nenhum trabalho de conferência se perde.
+
+**[PENDENTE]** Ordem de conferência: proposta de conferir as candidatas numa ordem
+aleatória gerada por script (semente registrada), para que o número final de músicas,
+qualquer que seja, continue sendo uma amostra aleatória.
 
 O dev e o teste não compartilham composições.
 
@@ -200,8 +211,12 @@ transcrição tinha a mais formavam trechos que existem na letra. Pelo menos par
 ### 4.2 Grafia
 
 - Ortografia padrão atual, inclusive para palavras de época.
-- Contrações faladas, na forma cantada: **[PENDENTE]** "pro" ou "para o", "tá" ou "está"
-  (proposta: como foi cantado, já que é isso que o transcritor ouve).
+- Contrações: registradas **como foram cantadas** ("pro", "tá", "pra"). Na avaliação,
+  uma **lista fixa de equivalências de grafia** é aplicada aos dois lados (referência e
+  transcrição) antes das métricas — "para o" = "pro", "para" = "pra", "está" = "tá"…
+  —, para que a escolha de grafia do modelo não conte como erro de audição. A lista só
+  contém variantes sem ambiguidade e é congelada com o protocolo (seção 6.2).
+  **[PENDENTE: lista]**
 - Pontuação e quebras de linha são livres: a avaliação ignora pontuação, maiúsculas e
   quebras de linha (seção 6.2).
 
@@ -212,11 +227,12 @@ gravação tiver trechos de dúvida ou inaudíveis, a música é excluída (pass
 4.1), em vez de entrar com um palpite: um palpite errado penalizaria uma transcrição
 correta, e um certo premiaria a memorização.
 
-### 4.4 Concordância entre anotadores (recomendado)
+### 4.4 Concordância entre anotadores
 
-**[PENDENTE]** Uma segunda pessoa confere de forma independente uma amostra aleatória
-(proposta: 20% das músicas, sorteadas). O relatório traz o WER entre as duas versões da
-referência. Isso mostra o piso de erro da própria referência: diferenças entre métodos
+Uma **segunda pessoa** estabelece de forma independente a letra de referência de uma
+amostra aleatória de **20% das músicas** (sorteadas com semente registrada), seguindo o
+mesmo procedimento, sem ver a versão do primeiro anotador. O relatório traz o WER entre
+as duas versões da referência (após a normalização da seção 6.2). Isso mostra o piso de erro da própria referência: diferenças entre métodos
 menores que essa discordância não podem ser atribuídas aos métodos.
 
 ## 5. Métodos comparados
@@ -480,6 +496,7 @@ causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio n�
 | Versão | Data | Alteração | Motivo |
 |---|---|---|---|
 | 0.1 | 09/11/2026 | Rascunho inicial | — |
+| 0.6 | 09/11/2026 | Filtro de domínio público do site documentado (3.1); limite por intérprete só no teste, excedente vai para o dev (3.3); contrações como cantadas + equivalências na normalização (4.2); segunda pessoa confere 20% (4.4) | Decisões da revisão do protocolo |
 | 0.5 | 09/11/2026 | Critério 3 (7.3): teto fixo de falhas graves trocado por "sem dano líquido demonstrado" no WER do corpus; taxa de falhas graves relatada com IC de Clopper–Pearson | Instabilidade do teto fixo na simulação de poder |
 | 0.4 | 09/11/2026 | Simulação de poder preliminar (3.3); critério de falhas graves revisto, em discussão (7.3) | Teto fixo de falhas graves se mostrou instável na simulação |
 | 0.3 | 09/11/2026 | Análise estatística decidida (7.3): Wilcoxon-Pratt + Hodges–Lehmann, WER do corpus como proteção contra dano, teste do sinal descritivo, sequência fixa H1 → {H2, H3 com Holm}, BH nas exploratórias | Discussão da adequação dos testes ao formato dos dados |
