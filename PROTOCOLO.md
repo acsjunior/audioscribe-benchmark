@@ -1,6 +1,6 @@
 # Protocolo do Estudo
 
-**Status:** rascunho (v0.10, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
+**Status:** rascunho (v0.11, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
 decisão antes das execuções oficiais. Quando todos estiverem resolvidos, o protocolo é
 congelado (versão 1.0, com data e commit). A partir daí, qualquer mudança é registrada
 na seção 13, com justificativa, e reportada no trabalho.
@@ -91,8 +91,10 @@ estabelecer a letra de referência), que se confundiria com o efeito dos método
 recorte mantém o foco na hipótese principal; a era mecânica fica como extensão futura.
 
 **Pool resultante** (catálogo extraído em 10/11/2026 com o db-scraper): 546 candidatas →
-469 com gênero exatamente "Samba" → 312 gravadas de 1928 em diante, das quais ~292 com
-cantor (estimativa pelo nome do intérprete, a confirmar na audição). Por década (com
+469 com gênero exatamente "Samba" → 312 gravadas de 1928 em diante → **274 cantadas**,
+depois da revisão de 38 gravações instrumentais (seção 3.3) → **250 composições**
+(uma gravação por composição). Por década: 1928–29 76, 1930s 146, 1940s 14, 1950s 14
+composições. Estatísticas abaixo, estimadas antes da revisão: Por década (com
 cantor): 1920s 83, 1930s 152, 1940s 26, 1950s 31. ~263 composições distintas, 20 delas
 com mais de uma gravação. 103 intérpretes (Francisco Alves 62, Mário Reis 34, Aracy de
 Almeida 22); 66 autores, com Noel Rosa e Sinhô em 38% das gravações.
@@ -164,7 +166,9 @@ uma amostra para outra. Implementação: `src/benchmark/sampling.py` e
    autor falecido depois de 1955) é marcada em `status`/`motivo_exclusao` e a conferência
    segue para a próxima. As exclusões e suas posições são relatadas.
 
-Semente: **20261110** (registrada junto com a lista gerada).
+Semente: **20261110**. Lista gerada em 10/11/2026: `data/candidatas/ordem_amostragem.csv`
+(250 posições; 38 instrumentais confirmadas na revisão). A proporção por década é
+mantida em todo prefixo da lista (ex.: nas 50 primeiras, 15 / 29 / 3 / 3).
 
 | Conjunto | Composição | Uso |
 |---|---|---|
@@ -562,6 +566,7 @@ causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio n�
 | Versão | Data | Alteração | Motivo |
 |---|---|---|---|
 | 0.1 | 09/11/2026 | Rascunho inicial | — |
+| 0.11 | 10/11/2026 | Revisão de 38 instrumentais confirmada; lista de amostragem gerada (250 composições) | Execução da amostragem |
 | 0.10 | 10/11/2026 | Amostra proporcional estratificada por década com ordem balanceada; sem limite por intérprete (revoga a decisão da v0.6); uma gravação por composição, sorteada; dev = 25 primeiras posições do mesmo pool; 28 músicas exploratórias fora; revisão manual de instrumentais; sensibilidade por intérprete (3.3) | Discussão da amostragem |
 | 0.9 | 10/11/2026 | Gênero exatamente "Samba" e gravação a partir de 1928, com justificativa (era elétrica); pool resultante documentado (3.1) | Discussão da amostragem |
 | 0.8 | 10/11/2026 | Dev e teste não compartilham composições, nem em outra gravação; definição de "mesma composição" (3.3) | Discussão da amostragem |

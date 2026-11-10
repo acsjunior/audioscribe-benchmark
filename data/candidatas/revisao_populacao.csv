@@ -1,39 +1,39 @@
 data_id,acao,valor,observacao,titulo,interprete,autor,ano,confirmado
-21441,instrumental,,sugestão: intérprete parece instrumental,Samba De Verdade,Orquestra Pan American,Francisco Alves / Brancura,1928,
-27049,instrumental,,sugestão: intérprete parece instrumental,Jura,Orquestra Pan American,Sinhô,1929,
-31736,instrumental,,sugestão: intérprete parece instrumental,Perdão,Simão Nacional Orquestra,Francisco Alves,1929,
-61195,instrumental,,sugestão: intérprete parece instrumental,Sarambá,Orquestra Brunswick,J. Thomaz,1930,
-40352,instrumental,,sugestão: intérprete parece instrumental,Homem Que Chora,Grupo Batutas Rioclarenses,Antônio Magno,1931,
-19179,instrumental,,sugestão: intérprete parece instrumental,Tem Muamba,Orquestra Copacabana,Eduardo Souto,1931,
-47389,instrumental,,sugestão: intérprete parece instrumental,Palpite Infeliz,Carolina Cardoso de Menezes,Noel Rosa,1941,
-47412,instrumental,,sugestão: intérprete parece instrumental,Danúbio Azul,Passos e Sua Orquestra,Johann Strauss,1942,
-55224,instrumental,,sugestão: intérprete parece instrumental,Valsa De Chopin,Totó e Sua Orquestra Columbia,F. Chopin,1942,
-74893,instrumental,,sugestão: intérprete parece instrumental,Os Patinadores,Carolina / Garoto,Emil Waldteufel,1944,
-92045,instrumental,,sugestão: intérprete parece instrumental,Fantasia Carioca,Fernando Barreto,S.I.,1945,
-140406,instrumental,,sugestão: intérprete parece instrumental,Os Pintinhos No Terreiro (The Parrot),Ethel Smith,Zequinha de Abreu,1945,
-75872,instrumental,,sugestão: orquestra com refrão vocal curto (confirmar),A Casinha Pequenina,Zaccarias e Sua Orquestra / Refrão Vocal,Popular,1946,
-61377,instrumental,,sugestão: intérprete parece instrumental,Apanhei-Te Cavaquinho (Blame It On The Samba),Ethel Smith,Ernesto Nazareth,1946,
-73130,instrumental,,sugestão: intérprete parece instrumental,La Cinquantaine,Milionários do Ritmo,Gabriel Marie,1946,
-75879,instrumental,,sugestão: orquestra com refrão vocal curto (confirmar),Meu Limão Meu Limoeiro,Zaccarias e Sua Orquestra / Refrão Vocal,Folclore,1946,
-72848,instrumental,,sugestão: intérprete parece instrumental,Danúbio Azul,Zaccarias e Sua Orquestra,Johann Strauss,1947,
-72844,instrumental,,sugestão: orquestra com refrão vocal curto (confirmar),Palpite Infeliz,Zaccarias e Sua Orquestra / Refrão Vocal,Noel Rosa,1947,
-76738,instrumental,,sugestão: intérprete parece instrumental,Sétimo Céu,Zaccarias e Sua Orquestra,F. Chopin,1947,
-182059,instrumental,,sugestão: intérprete parece instrumental,Cavaquinho,Henri Leca,Ernesto Nazareth,1949,
-68084,instrumental,,sugestão: intérprete parece instrumental,Linda Flor,Carioca e Sua Orquestra,Henrique Vogeler,1949,
-68211,instrumental,,sugestão: orquestra com refrão vocal curto (confirmar),Casinha Pequenina,Carioca e Sua Orquestra com Refrão por Coral,Popular,1950,
-62954,instrumental,,sugestão: intérprete parece instrumental,Linda Flor,Muraro,Henrique Vogeler,1950,
-147517,instrumental,,sugestão: intérprete parece instrumental,Linda Flor - Ai Ioiô,Peter Kreuder,Henrique Vogeler,1950,
-76840,instrumental,,sugestão: intérprete parece instrumental,Último Desejo,Zaccarias e Sua Orquestra,Noel Rosa,1950,
-89528,instrumental,,sugestão: intérprete parece instrumental,Parabéns A Você,Djalma Ferreira,Popular,1951,
-145467,instrumental,,sugestão: intérprete parece instrumental,Tico Tico No Fubá,Roberto Inglez e Sua Orquestra,Zequinha de Abreu,1951,
-146618,instrumental,,sugestão: intérprete parece instrumental,Tico Tico No Fubá (Tico Tico),Roberto Inglez And His Orchestra Hotel Savoy,Zequinha de Abreu,1951,
-145488,instrumental,,sugestão: intérprete parece instrumental,Apanhei-Te Cavaquinho,Tony Murena e Seu Conjunto,Ernesto Nazareth,1952,
-70004,instrumental,,sugestão: intérprete parece instrumental,Chopin No Samba,Muraro,F. Chopin,1952,
-70116,instrumental,,sugestão: intérprete parece instrumental,Serenata De Schubert,Guio de Moraes e Seus Parentes,Franz Schubert,1952,
-97680,instrumental,,sugestão: intérprete parece instrumental,A Casinha Pequenina,Canhoto e Seu Regional,Popular,1953,
-115367,instrumental,,sugestão: intérprete parece instrumental,Palpite Infeliz,Os Namorados,Noel Rosa,1953,
-112691,instrumental,,sugestão: intérprete parece instrumental,Torna A Sorriento,Os Copacabana,E. de Curtis,1953,
-122249,instrumental,,sugestão: intérprete parece instrumental,Pour Elise,Robledo,L. V. Beethoven,1954,
-132130,instrumental,,sugestão: intérprete parece instrumental,Valsa Da Despedida,Waldir Calmon,Robert Burns,1954,
-166062,instrumental,,sugestão: intérprete parece instrumental,Fita Amarela,Trio Surdina,Noel Rosa,1955,
-166065,instrumental,,sugestão: intérprete parece instrumental,Três Apitos,Trio Surdina,Noel Rosa,1955,
+21441,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Samba De Verdade,Orquestra Pan American,Francisco Alves / Brancura,1928,sim
+27049,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Jura,Orquestra Pan American,Sinhô,1929,sim
+31736,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Perdão,Simão Nacional Orquestra,Francisco Alves,1929,sim
+61195,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Sarambá,Orquestra Brunswick,J. Thomaz,1930,sim
+40352,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Homem Que Chora,Grupo Batutas Rioclarenses,Antônio Magno,1931,sim
+19179,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Tem Muamba,Orquestra Copacabana,Eduardo Souto,1931,sim
+47389,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Palpite Infeliz,Carolina Cardoso de Menezes,Noel Rosa,1941,sim
+47412,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Danúbio Azul,Passos e Sua Orquestra,Johann Strauss,1942,sim
+55224,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Valsa De Chopin,Totó e Sua Orquestra Columbia,F. Chopin,1942,sim
+74893,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Os Patinadores,Carolina / Garoto,Emil Waldteufel,1944,sim
+92045,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Fantasia Carioca,Fernando Barreto,S.I.,1945,sim
+140406,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Os Pintinhos No Terreiro (The Parrot),Ethel Smith,Zequinha de Abreu,1945,sim
+75872,instrumental,,orquestra com refrão vocal curto (confirmar) — revisado pelo usuário em 10/11/2026,A Casinha Pequenina,Zaccarias e Sua Orquestra / Refrão Vocal,Popular,1946,sim
+61377,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Apanhei-Te Cavaquinho (Blame It On The Samba),Ethel Smith,Ernesto Nazareth,1946,sim
+73130,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,La Cinquantaine,Milionários do Ritmo,Gabriel Marie,1946,sim
+75879,instrumental,,orquestra com refrão vocal curto (confirmar) — revisado pelo usuário em 10/11/2026,Meu Limão Meu Limoeiro,Zaccarias e Sua Orquestra / Refrão Vocal,Folclore,1946,sim
+72848,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Danúbio Azul,Zaccarias e Sua Orquestra,Johann Strauss,1947,sim
+72844,instrumental,,orquestra com refrão vocal curto (confirmar) — revisado pelo usuário em 10/11/2026,Palpite Infeliz,Zaccarias e Sua Orquestra / Refrão Vocal,Noel Rosa,1947,sim
+76738,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Sétimo Céu,Zaccarias e Sua Orquestra,F. Chopin,1947,sim
+182059,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Cavaquinho,Henri Leca,Ernesto Nazareth,1949,sim
+68084,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Linda Flor,Carioca e Sua Orquestra,Henrique Vogeler,1949,sim
+68211,instrumental,,orquestra com refrão vocal curto (confirmar) — revisado pelo usuário em 10/11/2026,Casinha Pequenina,Carioca e Sua Orquestra com Refrão por Coral,Popular,1950,sim
+62954,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Linda Flor,Muraro,Henrique Vogeler,1950,sim
+147517,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Linda Flor - Ai Ioiô,Peter Kreuder,Henrique Vogeler,1950,sim
+76840,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Último Desejo,Zaccarias e Sua Orquestra,Noel Rosa,1950,sim
+89528,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Parabéns A Você,Djalma Ferreira,Popular,1951,sim
+145467,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Tico Tico No Fubá,Roberto Inglez e Sua Orquestra,Zequinha de Abreu,1951,sim
+146618,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Tico Tico No Fubá (Tico Tico),Roberto Inglez And His Orchestra Hotel Savoy,Zequinha de Abreu,1951,sim
+145488,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Apanhei-Te Cavaquinho,Tony Murena e Seu Conjunto,Ernesto Nazareth,1952,sim
+70004,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Chopin No Samba,Muraro,F. Chopin,1952,sim
+70116,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Serenata De Schubert,Guio de Moraes e Seus Parentes,Franz Schubert,1952,sim
+97680,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,A Casinha Pequenina,Canhoto e Seu Regional,Popular,1953,sim
+115367,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Palpite Infeliz,Os Namorados,Noel Rosa,1953,sim
+112691,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Torna A Sorriento,Os Copacabana,E. de Curtis,1953,sim
+122249,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Pour Elise,Robledo,L. V. Beethoven,1954,sim
+132130,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Valsa Da Despedida,Waldir Calmon,Robert Burns,1954,sim
+166062,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Fita Amarela,Trio Surdina,Noel Rosa,1955,sim
+166065,instrumental,,intérprete parece instrumental — revisado pelo usuário em 10/11/2026,Três Apitos,Trio Surdina,Noel Rosa,1955,sim
