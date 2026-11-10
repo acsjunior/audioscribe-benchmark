@@ -1,6 +1,6 @@
 # Protocolo do Estudo
 
-**Status:** rascunho (v0.6, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
+**Status:** rascunho (v0.7, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
 decisão antes das execuções oficiais. Quando todos estiverem resolvidos, o protocolo é
 congelado (versão 1.0, com data e commit). A partir daí, qualquer mudança é registrada
 na seção 13, com justificativa, e reportada no trabalho.
@@ -84,14 +84,18 @@ gerar candidatas, e o ano de morte do último autor é conferido música a músi
 
 Uma candidata é excluída, **antes** de qualquer transcrição, se:
 
-- a **fração cantada** da gravação for menor que **[EM DISCUSSÃO]** (ver abaixo);
+- a letra de referência tiver menos de **[PENDENTE: proposta 50]** palavras (após a
+  normalização da seção 6.2);
 - o áudio estiver incompleto, cortado ou com defeito que impeça ouvir a letra;
 - não for possível estabelecer a letra de referência pelo procedimento da seção 4
   (trechos inaudíveis acima do limite da seção 4.3);
 - for outra gravação da mesma composição já incluída (no máximo uma gravação por
   composição).
 
-**Fração cantada.** Estimada por `scripts/sung_fraction.py`: energia da faixa de voz
+**Fração cantada (registrada, não é critério de corte).** Excluir gravações com muito
+trecho instrumental tiraria do estudo uma dificuldade real do acervo — é nesses trechos
+que os modelos costumam inventar texto. Por isso o critério é o número de palavras, e a
+fração cantada é registrada para análise exploratória (o ganho depende dela?). Estimada por `scripts/sung_fraction.py`: energia da faixa de voz
 isolada pelo demucs, em janelas de 50 ms, com limiar relativo à própria gravação (p95
 − 20 dB) e suavização (pausas < 1 s contam como canto). Nas 28 músicas do dev:
 
@@ -103,9 +107,8 @@ isolada pelo demucs, em janelas de 50 ms, com limiar relativo à própria grava�
 
 A estimativa é estável entre limiares (variação de poucos pontos por música). Uma
 gravação típica do período tem cerca de um terço de introdução e interlúdios
-instrumentais. Um corte em 75% cantado excluiria 25 das 28 músicas; os candidatos
-razoáveis estão entre 40% (exclui 1) e 50% (exclui 2). Casos-limite são confirmados
-ouvindo a gravação.
+instrumentais. Palavras na letra (dev exploratório): média 165,9, DP 52,7, mín 75, Q1
+130, mediana 157, Q3 189, máx 314; correlação de Spearman com a fração cantada: 0,66.
 
 Exclusões e motivos são registrados (seção 3.4). Nenhuma música é excluída depois de
 transcrita por causa do resultado.
@@ -155,9 +158,10 @@ para que intérpretes prolíficos (Francisco Alves, Orlando Silva) não dominem 
 avaliação. Músicas conferidas que excederem o limite vão para o **dev**, em vez de
 serem descartadas: nenhum trabalho de conferência se perde.
 
-**[PENDENTE]** Ordem de conferência: proposta de conferir as candidatas numa ordem
-aleatória gerada por script (semente registrada), para que o número final de músicas,
-qualquer que seja, continue sendo uma amostra aleatória.
+**Ordem de conferência.** As candidatas são conferidas numa **ordem aleatória** gerada
+por script (semente registrada, lista e data de acesso no repositório), e não escolhidas
+uma a uma. Assim o número final de músicas, qualquer que seja, continua sendo uma
+amostra aleatória das candidatas.
 
 O dev e o teste não compartilham composições.
 
@@ -194,8 +198,11 @@ Para cada música, **antes** de ver qualquer transcrição automática dela:
      gravação;
    - **variações**: se o cantor troca uma palavra em relação à letra publicada, vale o
      que foi cantado;
-   - **falas e cacos**: **[PENDENTE]** incluir ou não falas do intérprete (anúncios,
-     "breques", interjeições soltas como "ô", "ai").
+   - **falas e cacos**: entra tudo o que o intérprete canta ou fala *como parte da
+     música* (breques, interjeições, coro cantando a letra); ficam de fora anúncios e
+     créditos ("gravação Odeon…"), conversa de fundo e ruído de plateia. Interjeições e
+     vocalizações ("ô", "ai", "laiá"…) são registradas, mas removidas na normalização
+     (seção 6.2): a grafia delas é arbitrária.
 4. Ouvir uma segunda vez, inteira, conferindo a versão final.
 5. **Decidir a inclusão**: depois da audição completa, a música pode ser **excluída** se
    tiver trechos de dúvida ou inaudíveis (seção 4.3). Essa decisão é tomada **antes** de
@@ -216,7 +223,7 @@ transcrição tinha a mais formavam trechos que existem na letra. Pelo menos par
   transcrição) antes das métricas — "para o" = "pro", "para" = "pra", "está" = "tá"…
   —, para que a escolha de grafia do modelo não conte como erro de audição. A lista só
   contém variantes sem ambiguidade e é congelada com o protocolo (seção 6.2).
-  **[PENDENTE: lista]**
+  A lista está em `src/benchmark/metrics/normalization.yaml`.
 - Pontuação e quebras de linha são livres: a avaliação ignora pontuação, maiúsculas e
   quebras de linha (seção 6.2).
 
@@ -269,9 +276,15 @@ teste é congelado com nome e hash.
 
 ### 6.2 Normalização
 
-Antes de qualquer métrica: minúsculas; pontuação substituída por espaço (inclusive
-hífen: "corda-bamba" vira "corda bamba"); espaços e quebras de linha colapsados;
-**acentos mantidos**. Implementação: `metrics/base.py::normalize`.
+Antes de qualquer métrica, igual para a referência e a transcrição: minúsculas;
+apóstrofo removido ("p'ra" vira "pra"); demais pontuações substituídas por espaço
+(inclusive hífen: "corda-bamba" vira "corda bamba"); espaços e quebras de linha
+colapsados; **acentos mantidos**; remoção das **interjeições** e aplicação das
+**equivalências de grafia** de `src/benchmark/metrics/normalization.yaml` (ex.: "para o"
+= "pro", "está" = "tá"). A lista só tem variantes sem ambiguidade ("o", "lá", "oi",
+"num" e "tão" ficam de fora) e é congelada com o protocolo. Implementação:
+`metrics/base.py::normalize`. Nas 28 letras do dev exploratório, a normalização remove
+ou funde 28 de 4.665 palavras (0,6%).
 
 ### 6.3 Medidas secundárias
 
@@ -496,6 +509,7 @@ causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio n�
 | Versão | Data | Alteração | Motivo |
 |---|---|---|---|
 | 0.1 | 09/11/2026 | Rascunho inicial | — |
+| 0.7 | 09/11/2026 | Critério de corte por número mínimo de palavras, fração cantada só registrada (3.2); ordem aleatória de conferência (3.3); falas, breques e interjeições (4.1); interjeições e equivalências de grafia na normalização (6.2) | Decisões da revisão do protocolo |
 | 0.6 | 09/11/2026 | Filtro de domínio público do site documentado (3.1); limite por intérprete só no teste, excedente vai para o dev (3.3); contrações como cantadas + equivalências na normalização (4.2); segunda pessoa confere 20% (4.4) | Decisões da revisão do protocolo |
 | 0.5 | 09/11/2026 | Critério 3 (7.3): teto fixo de falhas graves trocado por "sem dano líquido demonstrado" no WER do corpus; taxa de falhas graves relatada com IC de Clopper–Pearson | Instabilidade do teto fixo na simulação de poder |
 | 0.4 | 09/11/2026 | Simulação de poder preliminar (3.3); critério de falhas graves revisto, em discussão (7.3) | Teto fixo de falhas graves se mostrou instável na simulação |

@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from benchmark.metrics import get_metrics
 from benchmark.metrics.base import normalize
@@ -111,3 +112,25 @@ def test_cer_ignores_capitalization():
 def test_cer_penalizes_accent_difference():
     result = CERMetric().compute("nao", "não")
     assert result > 0.0
+
+
+# --- interjeições e equivalências de grafia (PROTOCOLO 4.2 / 6.2) ---
+
+def test_normalize_removes_interjections():
+    assert normalize("Ô Antonico, ai, vou lhe pedir") == "antonico vou lhe pedir"
+    assert normalize("Oh Antonico") == normalize("Ó Antonico") == "antonico"
+
+
+def test_normalize_keeps_ambiguous_words():
+    assert normalize("lá vem o samba, oi") == "lá vem o samba oi"
+
+
+def test_normalize_spelling_equivalences():
+    assert normalize("já fizeram para o rapaz") == normalize("já fizeram pro rapaz")
+    assert normalize("vou para a Penha") == "vou pra penha"
+    assert normalize("ele está aqui, não é?") == "ele tá aqui né"
+    assert normalize("p'ra você") == "pra você"
+
+
+def test_wer_does_not_penalize_spelling_choice():
+    assert WERMetric().compute("Ô, fizeram para o rapaz", "fizeram pro rapaz") == 0.0

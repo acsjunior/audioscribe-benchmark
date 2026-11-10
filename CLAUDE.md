@@ -274,7 +274,7 @@ Não há pastas por música nem arquivos `ground_truth.md`. Todos os metadados e
 `gdrive.py` implementa OAuth2 via `google-auth-oauthlib`. Na primeira execução abre o browser para autenticação; o token é salvo em `token.json` e reutilizado automaticamente. O cache é verificado pelo nome do arquivo (coluna `Arquivo` do catálogo) dentro de `audio_dir`. Se o arquivo já existir localmente, o download é ignorado — tanto no pipeline (`pipeline.py`) quanto dentro de `download_audio()` (`gdrive.py`).
 
 ### Normalização nas Métricas
-WER e CER normalizam os textos antes do cálculo: converte para minúsculas, remove pontuação e colapsa espaços/quebras de linha. Acentuação é preservada — diferenças como "não" vs "nao" continuam sendo contadas como erro.
+`metrics/base.py::normalize` (usada por WER, CER, diagnóstico de erros e consenso), igual para referência e transcrição: minúsculas, apóstrofo removido ("p'ra" → "pra"), pontuação → espaço, espaços colapsados, acentos preservados ("não" vs "nao" continua erro); depois remove as **interjeições** e aplica as **equivalências de grafia** de `metrics/normalization.yaml` ("para o" → "pro", "está" → "tá"…; expressões mais longas primeiro). A lista faz parte do protocolo (PROTOCOLO 4.2/6.2): só variantes sem ambiguidade, e mudá-la muda os resultados. `basic_normalize` faz só a primeira parte.
 
 ### Adapter Pattern — Refinamento com LLMs
 Cada provedor (OpenAI, Anthropic, Google) tem seu próprio adapter implementando `BaseRefiner`. Adicionar um novo provedor requer apenas criar um novo arquivo em `refinement/` e registrá-lo em `REFINER_REGISTRY`.

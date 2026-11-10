@@ -1,0 +1,46 @@
+# Normalização das métricas (PROTOCOLO, seções 4.2 e 6.2).
+#
+# Aplicada igualmente à letra de referência e à transcrição, antes de WER/CER, do
+# diagnóstico de erros e do consenso. Faz parte do protocolo: mudar esta lista muda os
+# resultados, então ela é congelada junto com o protocolo e toda alteração é registrada.
+#
+# Regras para entrar na lista: só variantes de grafia SEM ambiguidade. Palavras que têm
+# outro uso ficam de fora (ex.: "o" é artigo; "lá" é advérbio; "oi" pode ser letra;
+# "num" pode ser "em um" ou "não"; "tão" pode ser advérbio).
+
+# Interjeições e vocalizações removidas dos dois lados. A grafia é arbitrária
+# ("ô" / "oh" / "ó") e os modelos as omitem de forma inconsistente: medem grafia, não
+# audição.
+interjections:
+  - ô
+  - oh
+  - ó
+  - ah
+  - á
+  - ai
+  - ui
+  - eh
+  - ê
+  - ei
+  - hum
+  - hã
+  - uh
+  - ih
+  - iê
+  - laiá
+  - lalaiá
+  - laraiá
+
+# Equivalências de grafia: a forma da esquerda é reescrita como a da direita (forma
+# contraída, como costuma ser cantada). Expressões de várias palavras são aplicadas
+# antes das de uma palavra.
+equivalences:
+  para o: pro
+  para os: pros
+  para a: pra
+  para as: pras
+  para: pra
+  está: tá
+  estava: tava
+  estou: tô
+  não é: né
