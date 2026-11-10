@@ -2,8 +2,8 @@
 
 Lê o catálogo de candidatas extraído da Discografia Brasileira (db-scraper), aplica a
 população do estudo (gênero "Samba", 1928–1955), sorteia uma gravação por composição e
-ordena as composições em ordem aleatória estratificada e balanceada por década. As
-primeiras 25 posições são do dev; as seguintes, do teste.
+ordena as composições em ordem aleatória estratificada e balanceada por década. O split
+(dev/teste) não é definido aqui: depende da conferência (ver ``assign_splits.py``).
 
 Uso:
     uv run python scripts/sampling_order.py \\
@@ -16,7 +16,6 @@ import argparse
 from pathlib import Path
 
 from benchmark.sampling import (
-    DEV_SIZE,
     load_candidates,
     load_review,
     population,
@@ -29,14 +28,13 @@ def main() -> None:
     parser.add_argument("candidates_csv", type=Path)
     parser.add_argument("output_csv", type=Path)
     parser.add_argument("--seed", type=int, required=True)
-    parser.add_argument("--dev-size", type=int, default=DEV_SIZE)
     parser.add_argument("--review", type=Path, help="decisões manuais (instrumental, composição)")
     args = parser.parse_args()
 
     df = load_candidates(args.candidates_csv)
     review = load_review(args.review) if args.review else None
     pop = population(df, review)
-    order = sampling_order(df, seed=args.seed, dev_size=args.dev_size, review=review)
+    order = sampling_order(df, seed=args.seed, review=review)
     args.output_csv.parent.mkdir(parents=True, exist_ok=True)
     order.to_csv(args.output_csv, index=False)
 
@@ -44,7 +42,6 @@ def main() -> None:
     print(f"Composições (uma gravação sorteada por composição): {len(order)}")
     share = order["decada"].value_counts(normalize=True).sort_index()
     print("Proporção por década: " + ", ".join(f"{d}s {p:.1%}" for d, p in share.items()))
-    print(f"Dev: posições 1–{args.dev_size} · teste: {args.dev_size + 1}–{len(order)}")
     print(f"Salvo em: {args.output_csv}")
 
 

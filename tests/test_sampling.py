@@ -3,6 +3,7 @@ import pandas as pd
 import pytest
 
 from benchmark.sampling import (
+    assign_splits,
     balanced_order,
     composition_key,
     load_review,
@@ -84,17 +85,43 @@ def test_balanced_order_keeps_proportions_at_every_prefix():
             assert abs(np.sum(labels[:n] == value) - n * share) < 1.0 + 1e-9
 
 
-def test_sampling_order_one_per_composition_dev_split_and_reproducible():
+def test_sampling_order_one_per_composition_and_reproducible():
     rows = [[str(i), f"T{i}", "A", f"C{i}", "Samba", 1930 + i % 20] for i in range(40)]
     rows.append(["99", "T1 (Subtítulo)", "A", "Outro", "Samba", 1951])  # mesma composição de T1
     df = _df(rows)
-    a = sampling_order(df, seed=7, dev_size=5)
-    b = sampling_order(df, seed=7, dev_size=5)
+    a = sampling_order(df, seed=7)
+    b = sampling_order(df, seed=7)
     pd.testing.assert_frame_equal(a, b)
     assert len(a) == 40  # T1 tem duas gravações, uma sorteada
-    assert list(a["split"][:5]) == ["dev"] * 5
-    assert set(a["split"][5:]) == {"test"}
+    assert set(a["split"]) == {""}  # definido só na conferência
     assert list(a["posicao"]) == list(range(1, 41))
     t1 = a[a["titulo"].str.startswith("T1") & (a["n_gravacoes_composicao"] == 2)]
     assert len(t1) == 1
-    assert sampling_order(df, seed=8, dev_size=5)["data_id"].tolist() != a["data_id"].tolist()
+    assert sampling_order(df, seed=8)["data_id"].tolist() != a["data_id"].tolist()
+
+
+def _order(statuses):
+    return pd.DataFrame({"posicao": range(1, len(statuses) + 1), "status": statuses, "split": ""})
+
+
+def test_assign_splits_replaces_excluded_with_next_in_order():
+    out = assign_splits(_order(["incluida", "excluida", "incluida", "incluida", "Incluida"]), 2)
+    assert list(out["split"]) == ["dev", "", "dev", "test", "test"]
+    assert out["status"].iloc[4] == "incluida"
+
+
+def test_assign_splits_stops_at_first_unconferred():
+    out = assign_splits(_order(["incluida", "", "incluida", "excluida"]), 1)
+    assert list(out["split"]) == ["dev", "", "", ""]
+
+
+def test_assign_splits_follows_position_not_row_order():
+    order = _order(["incluida", "incluida", "incluida"]).iloc[::-1]
+    out = assign_splits(order, 2)
+    assert list(out["posicao"]) == [1, 2, 3]
+    assert list(out["split"]) == ["dev", "dev", "test"]
+
+
+def test_assign_splits_rejects_unknown_status():
+    with pytest.raises(ValueError, match="Status desconhecido"):
+        assign_splits(_order(["incluída?"]), 1)

@@ -1,6 +1,6 @@
 # Protocolo do Estudo
 
-**Status:** rascunho (v0.11, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
+**Status:** rascunho (v0.12, 10/11/2026). Os itens marcados **[PENDENTE]** precisam de
 decisão antes das execuções oficiais. Quando todos estiverem resolvidos, o protocolo é
 congelado (versão 1.0, com data e commit). A partir daí, qualquer mudança é registrada
 na seção 13, com justificativa, e reportada no trabalho.
@@ -157,14 +157,21 @@ uma amostra para outra. Implementação: `src/benchmark/sampling.py` e
    dentro da década, a ordem é aleatória. Em qualquer ponto em que a conferência pare,
    as décadas estão na proporção da população; intérpretes e autores ficam proporcionais
    pelo sorteio.
-4. **Dev e teste do mesmo pool**: as **25 primeiras posições** são o dev; as seguintes,
-   o teste. Os dois conjuntos têm o mesmo perfil, e como cada composição aparece uma
-   única vez na lista, nenhuma composição do dev aparece no teste (nem em outra
-   gravação).
+4. **Dev e teste do mesmo pool**: as **40 primeiras músicas incluídas**, na ordem da
+   lista, são o dev; as incluídas seguintes, o teste. Os dois conjuntos têm o mesmo
+   perfil, e como cada composição aparece uma única vez na lista, nenhuma composição do
+   dev aparece no teste (nem em outra gravação).
 5. **Conferência na ordem**: as músicas são conferidas na ordem da lista; uma música
    excluída (seção 3.2, por exemplo letra com menos de 50 palavras, trecho duvidoso ou
    autor falecido depois de 1955) é marcada em `status`/`motivo_exclusao` e a conferência
-   segue para a próxima. As exclusões e suas posições são relatadas.
+   segue para a próxima, que ocupa o lugar dela. **Reposição sem escolha**: a excluída é
+   sempre substituída pela próxima posição da lista, nunca por uma música escolhida (nem
+   da mesma década: a população são as músicas elegíveis, e seguir a ordem as sorteia;
+   forçar a década puxaria a amostra para as décadas com mais exclusões). A exclusão é
+   decidida só pela letra e pelo áudio, **antes** de qualquer modelo rodar na música;
+   uma excluída não volta, e uma incluída não sai por causa de resultados. O `split` é
+   calculado da coluna `status` (`scripts/assign_splits.py`) e só é definido quando todas
+   as posições anteriores já foram conferidas. As exclusões e suas posições são relatadas.
 
 Semente: **20261110**. Lista gerada em 10/11/2026: `data/candidatas/ordem_amostragem.csv`
 (250 posições; 38 instrumentais confirmadas na revisão). A proporção por década é
@@ -172,8 +179,17 @@ mantida em todo prefixo da lista (ex.: nas 50 primeiras, 15 / 29 / 3 / 3).
 
 | Conjunto | Composição | Uso |
 |---|---|---|
-| **Desenvolvimento** (`dev`) | posições 1–25 da ordem de amostragem | livre: ajustar prompts, escolher configurações, depurar |
-| **Teste** (`test`) | posições 26 em diante, até onde a conferência chegar | uma única execução, no fim, com tudo congelado |
+| **Desenvolvimento** (`dev`) | as 40 primeiras músicas incluídas na ordem de amostragem | livre: ajustar prompts, escolher configurações, depurar |
+| **Teste** (`test`) | as incluídas seguintes, até onde a conferência chegar (meta: 120) | uma única execução, no fim, com tudo congelado |
+
+**Por que 40 / 120.** Aqui não há treino: os modelos já vêm treinados, e o dev só escolhe
+a configuração (papel da base de validação em aprendizado de máquina). Errar a escolha no
+dev custa pouco (leva ao teste uma variante um pouco pior), enquanto faltar música no
+teste custa poder. Com 40, a escolha fica ~21% menos ruidosa que com 25; com 120, o teste
+passa das 85–100 músicas necessárias para detectar δ = 0,01 (simulação abaixo). As 160
+incluídas pedem ~200 posições conferidas com ~20% de exclusão, deixando ~50 posições de
+reserva; 50 / 150 exigiria praticamente o pool inteiro. As letras do dev ficam prontas
+antes do E3; as do teste podem ser conferidas enquanto os experimentos rodam no dev.
 
 As 28 músicas da fase exploratória ficam fora do estudo: 27 delas têm autor falecido
 depois de 1955 (Cartola, Ismael Silva, Bide, Wilson Batista…) e não cumprem o critério 3
@@ -191,9 +207,10 @@ totalmente independentes (mesma voz, dicção, estúdio). Por isso:
   autores (relevante para memorização); efeito por década (descritivo — os anos 1940–50
   terão poucas músicas).
 
-**Tamanho:** não é fixado de antemão. A base será enriquecida com o máximo de músicas
-possível, e o número final de músicas do teste é registrado no congelamento (seção 8),
-antes de qualquer execução no teste. Referência mínima: 32 músicas.
+**Tamanho:** dev de 40 músicas; teste com **meta de 120**, não um limite: entram todas
+as incluídas conferidas depois do dev. O número final do teste é registrado no
+congelamento (seção 8), antes de qualquer execução no teste. Mínimo aceitável: ~100
+(poder para δ = 0,01).
 
 **Poder estatístico (simulação preliminar).** `scripts/power.py` estima, por reamostragem,
 a probabilidade de detectar um efeito real em função do número de músicas no teste. Usa
@@ -566,6 +583,7 @@ causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio n�
 | Versão | Data | Alteração | Motivo |
 |---|---|---|---|
 | 0.1 | 09/11/2026 | Rascunho inicial | — |
+| 0.12 | 10/11/2026 | Dev = 40 primeiras incluídas na ordem (antes: posições 1–25); teste = incluídas seguintes, meta 120, mínimo ~100; reposição da excluída pela próxima posição, sem escolha; split calculado da conferência (3.3) | Discussão do tamanho do dev e da regra de reposição |
 | 0.11 | 10/11/2026 | Revisão de 38 instrumentais confirmada; lista de amostragem gerada (250 composições) | Execução da amostragem |
 | 0.10 | 10/11/2026 | Amostra proporcional estratificada por década com ordem balanceada; sem limite por intérprete (revoga a decisão da v0.6); uma gravação por composição, sorteada; dev = 25 primeiras posições do mesmo pool; 28 músicas exploratórias fora; revisão manual de instrumentais; sensibilidade por intérprete (3.3) | Discussão da amostragem |
 | 0.9 | 10/11/2026 | Gênero exatamente "Samba" e gravação a partir de 1928, com justificativa (era elétrica); pool resultante documentado (3.1) | Discussão da amostragem |

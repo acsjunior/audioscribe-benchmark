@@ -28,8 +28,9 @@ Definido no [PROTOCOLO](PROTOCOLO.md), seções 3 e 4. Em resumo:
   Brasileira (IMS). Catálogo extraído em 10/11/2026 com o db-scraper.
 - **Amostra proporcional**, estratificada e balanceada por década, uma gravação por
   composição; ordem de conferência sorteada (semente 20261110).
-- **Dev** = 25 primeiras posições da ordem; **teste** = as seguintes, até onde a
-  conferência chegar. Teste rodado uma única vez, com tudo congelado.
+- **Dev** = 40 primeiras músicas incluídas na ordem (excluída reposta pela próxima);
+  **teste** = as incluídas seguintes, até onde a conferência chegar (meta 120). Teste
+  rodado uma única vez, com tudo congelado.
 - As 28 músicas da fase exploratória ficam fora (27 têm autor falecido depois de 1955).
 - **Letra de referência**: conferida contra a gravação por procedimento único
   (PROTOCOLO, seção 4).

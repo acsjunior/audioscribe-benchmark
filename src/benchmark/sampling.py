@@ -11,7 +11,10 @@ A partir do catálogo de candidatas extraído da Discografia Brasileira:
    dentro de cada década a ordem é aleatória. Em qualquer ponto em que a conferência
    pare, as décadas estão na proporção da população; intérpretes e autores ficam
    proporcionais pelo sorteio, sem limites;
-4. **dev e teste**: as primeiras ``DEV_SIZE`` posições são do dev, as seguintes do teste.
+4. **dev e teste**: na conferência, cada música é marcada ``incluida`` ou ``excluida``
+   (``status``). As primeiras ``DEV_SIZE`` incluídas, na ordem, são o dev; as incluídas
+   seguintes, o teste (``assign_splits``). Uma excluída é reposta pela próxima da lista,
+   sem escolha manual.
 
 Decisões manuais tomadas **antes** do sorteio, só com os metadados do catálogo, ficam num
 arquivo de revisão (``data_id``, ``acao``, ``valor``, ``observacao``), versionado:
@@ -35,7 +38,9 @@ import pandas as pd
 YEAR_MIN = 1928
 YEAR_MAX = 1955
 GENRE = "Samba"
-DEV_SIZE = 25
+DEV_SIZE = 40
+TEST_TARGET = 120  # meta, não limite: entram todas as incluídas conferidas
+STATUSES = {"incluida", "excluida", ""}
 
 # Intérprete que parece só instrumental (banda, orquestra, grupo...). Apenas sinaliza.
 _INSTRUMENTAL = re.compile(
@@ -140,13 +145,13 @@ def balanced_order(strata: pd.Series, rng: np.random.Generator) -> list[int]:
 
 
 def sampling_order(
-    df: pd.DataFrame, seed: int, dev_size: int = DEV_SIZE, review: pd.DataFrame | None = None
+    df: pd.DataFrame, seed: int, review: pd.DataFrame | None = None
 ) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     pool = one_per_composition(population(df, review), rng)
     pool = pool.iloc[balanced_order(pool["decada"], rng)].reset_index(drop=True)
     pool.insert(0, "posicao", range(1, len(pool) + 1))
-    pool.insert(1, "split", ["dev" if i < dev_size else "test" for i in range(len(pool))])
+    pool.insert(1, "split", "")  # preenchido por assign_splits a partir de status
     pool["status"] = ""  # incluida | excluida (preenchido na conferência)
     pool["motivo_exclusao"] = ""
     columns = [
@@ -157,3 +162,30 @@ def sampling_order(
     ]
     pool["ano"] = pool["ano"].astype(int)
     return pool[columns]
+
+
+def assign_splits(order: pd.DataFrame, dev_size: int = DEV_SIZE) -> pd.DataFrame:
+    """Preenche ``split`` a partir de ``status``, seguindo a ordem da lista.
+
+    As primeiras ``dev_size`` músicas incluídas são ``dev`` e as incluídas seguintes são
+    ``test``; excluídas ficam sem split. A atribuição para na primeira música ainda não
+    conferida (``status`` vazio): o split de uma música só é definido quando todas as
+    anteriores já foram conferidas, para que nenhuma decisão posterior o altere.
+    """
+    out = order.sort_values("posicao").reset_index(drop=True).copy()
+    status = out["status"].fillna("").str.strip().str.lower()
+    unknown = set(status) - STATUSES
+    if unknown:
+        raise ValueError(f"Status desconhecido: {sorted(unknown)} (use incluida ou excluida)")
+    splits, included = [], 0
+    pending = False
+    for value in status:
+        pending = pending or value == ""
+        if pending or value == "excluida":
+            splits.append("")
+            continue
+        splits.append("dev" if included < dev_size else "test")
+        included += 1
+    out["status"] = status
+    out["split"] = splits
+    return out
