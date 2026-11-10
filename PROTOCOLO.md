@@ -1,6 +1,6 @@
 # Protocolo do Estudo
 
-**Status:** rascunho (v0.9, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
+**Status:** rascunho (v0.10, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
 decisão antes das execuções oficiais. Quando todos estiverem resolvidos, o protocolo é
 congelado (versão 1.0, com data e commit). A partir daí, qualquer mudança é registrada
 na seção 13, com justificativa, e reportada no trabalho.
@@ -130,23 +130,62 @@ instrumentais. Palavras na letra (dev exploratório): média 165,9, DP 52,7, mí
 Exclusões e motivos são registrados (seção 3.4). Nenhuma música é excluída depois de
 transcrita por causa do resultado.
 
-### 3.3 Divisão em desenvolvimento e teste
+### 3.3 Amostragem e divisão em desenvolvimento e teste
+
+**Desenho: amostra proporcional à população.** O estudo responde "como os métodos se
+saem *neste acervo*" (sambas cantados em domínio público, 1928–1955, na Discografia
+Brasileira). A amostra deve, portanto, representar a população em todas as variáveis
+(década, intérprete, autor, gravadora), sem limites artificiais. A amostragem aleatória
+já é proporcional em todas elas em média; a estratificação por **década** — a variável
+que mais muda o som da gravação — garante a proporção exata nela e reduz a variação de
+uma amostra para outra. Implementação: `src/benchmark/sampling.py` e
+`scripts/sampling_order.py`.
+
+**Etapas:**
+
+1. **População**: catálogo extraído em 10/11/2026 com o db-scraper
+   (`data/candidatas/discografia_samba_dp_2026-11-10.csv`, 546 candidatas), filtrado
+   pelos critérios 1 e 2 da seção 3.1 (312 gravações). Gravações **instrumentais** saem
+   da população por revisão manual dos metadados, feita **antes** do sorteio e registrada
+   em `data/candidatas/revisao_populacao.csv` (só valem as linhas confirmadas).
+2. **Uma gravação por composição**, **sorteada** entre as gravações da composição, para
+   não puxar a amostra para os originais nem para as regravações.
+3. **Ordem aleatória estratificada e balanceada por década**: a cada posição entra a
+   década mais atrasada em relação à sua proporção na população (empates sorteados) e,
+   dentro da década, a ordem é aleatória. Em qualquer ponto em que a conferência pare,
+   as décadas estão na proporção da população; intérpretes e autores ficam proporcionais
+   pelo sorteio.
+4. **Dev e teste do mesmo pool**: as **25 primeiras posições** são o dev; as seguintes,
+   o teste. Os dois conjuntos têm o mesmo perfil, e como cada composição aparece uma
+   única vez na lista, nenhuma composição do dev aparece no teste (nem em outra
+   gravação).
+5. **Conferência na ordem**: as músicas são conferidas na ordem da lista; uma música
+   excluída (seção 3.2, por exemplo letra com menos de 50 palavras, trecho duvidoso ou
+   autor falecido depois de 1955) é marcada em `status`/`motivo_exclusao` e a conferência
+   segue para a próxima. As exclusões e suas posições são relatadas.
+
+Semente: **20261110** (registrada junto com a lista gerada).
 
 | Conjunto | Composição | Uso |
 |---|---|---|
-| **Desenvolvimento** (`dev`) | as 28 músicas da fase exploratória que cumprirem o critério 3.1 (hoje uma por ano, 1928–1955) | livre: ajustar prompts, escolher configurações, depurar |
-| **Teste** (`test`) | músicas novas, sorteadas entre as candidatas | uma única execução, no fim, com tudo congelado |
+| **Desenvolvimento** (`dev`) | posições 1–25 da ordem de amostragem | livre: ajustar prompts, escolher configurações, depurar |
+| **Teste** (`test`) | posições 26 em diante, até onde a conferência chegar | uma única execução, no fim, com tudo congelado |
 
-**Sorteio do teste:**
+As 28 músicas da fase exploratória ficam fora do estudo: 27 delas têm autor falecido
+depois de 1955 (Cartola, Ismael Silva, Bide, Wilson Batista…) e não cumprem o critério 3
+da seção 3.1. Elas permanecem citadas apenas como estudo exploratório (seção 11).
 
-- candidatas: o filtro de domínio público da Discografia Brasileira (546 sambas em
-  09/2026), menos as músicas do dev, menos as excluídas;
-- sorteio estratificado por **década** (1920, 1930, 1940, 1950), proporcional ao número
-  de candidatas em cada uma, com no máximo **3 músicas por intérprete**;
-- semente registrada; o script do sorteio e a lista de candidatas (com data de acesso)
-  ficam no repositório;
-- se uma sorteada for excluída pelos critérios da seção 3.2, entra a próxima da ordem do
-  sorteio no mesmo estrato.
+**Concentração e análises de sensibilidade.** O acervo concentra-se em poucos nomes
+(Francisco Alves em ~21% das gravações cantadas; Noel Rosa e Sinhô em ~38% como
+autores), e a amostra proporcional herda isso. Gravações do mesmo intérprete não são
+totalmente independentes (mesma voz, dicção, estúdio). Por isso:
+
+- **sensibilidade (obrigatória)**: o IC do efeito de H1 é recalculado por bootstrap
+  reamostrando **intérpretes** (grupos) em vez de músicas; se a conclusão mudar, isso é
+  relatado junto ao resultado principal;
+- **exploratórias**: efeito por intérprete frequente; Noel Rosa/Sinhô contra os demais
+  autores (relevante para memorização); efeito por década (descritivo — os anos 1940–50
+  terão poucas músicas).
 
 **Tamanho:** não é fixado de antemão. A base será enriquecida com o máximo de músicas
 possível, e o número final de músicas do teste é registrado no congelamento (seção 8),
@@ -170,30 +209,14 @@ efeitos de 0,01 pedem ~85–100. A simulação é conservadora no ruído (rodada
 várias rodadas por música ele diminui) e assume para H2/H3 o mesmo δ de H1, o que é
 otimista. **Refazer com os ganhos da conferência (E7) no dev antes do congelamento.**
 
-**Limite por intérprete.** O limite de 3 músicas por intérprete vale **só para o teste**,
-para que intérpretes prolíficos (Francisco Alves, Orlando Silva) não dominem a
-avaliação. Músicas conferidas que excederem o limite vão para o **dev**, em vez de
-serem descartadas: nenhum trabalho de conferência se perde.
-
-**Ordem de conferência.** As candidatas são conferidas numa **ordem aleatória** gerada
-por script (semente registrada, lista e data de acesso no repositório), e não escolhidas
-uma a uma. Assim o número final de músicas, qualquer que seja, continua sendo uma
-amostra aleatória das candidatas.
-
-**Composições entre dev e teste.** Uma composição usada no dev não entra no teste, nem
-em outra gravação: ajustar prompts no dev com uma letra que depois aparece no teste (na
-voz de outro intérprete) contaminaria a avaliação.
-
 **Mesma composição** = mesmo título e mesma autoria, comparados após normalização
 (minúsculas, sem acentos e pontuação, sem subtítulos entre parênteses, autores em
 qualquer ordem), com revisão manual dos grupos encontrados. Títulos iguais com autores
-diferentes são composições diferentes. No pool de 10/11/2026 há ~21 composições com
-mais de uma gravação, quase sempre um original dos anos 1920–30 e uma regravação de
+diferentes são composições diferentes. Casos que a normalização não reconhece (ex.:
+versões com outro subtítulo) são resolvidos na revisão manual
+(`revisao_populacao.csv`, ação `composicao`). No pool de 10/11/2026 há ~25 composições
+com mais de uma gravação, quase sempre um original dos anos 1920–30 e uma regravação de
 1946–1955.
-
-**[PENDENTE]** Qual gravação fica quando há várias: proposta de **sorteio** (a primeira
-na ordem aleatória geral), para não puxar a amostra para os originais nem para as
-regravações.
 
 ### 3.4 Registro no catálogo
 
@@ -539,6 +562,7 @@ causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio n�
 | Versão | Data | Alteração | Motivo |
 |---|---|---|---|
 | 0.1 | 09/11/2026 | Rascunho inicial | — |
+| 0.10 | 10/11/2026 | Amostra proporcional estratificada por década com ordem balanceada; sem limite por intérprete (revoga a decisão da v0.6); uma gravação por composição, sorteada; dev = 25 primeiras posições do mesmo pool; 28 músicas exploratórias fora; revisão manual de instrumentais; sensibilidade por intérprete (3.3) | Discussão da amostragem |
 | 0.9 | 10/11/2026 | Gênero exatamente "Samba" e gravação a partir de 1928, com justificativa (era elétrica); pool resultante documentado (3.1) | Discussão da amostragem |
 | 0.8 | 10/11/2026 | Dev e teste não compartilham composições, nem em outra gravação; definição de "mesma composição" (3.3) | Discussão da amostragem |
 | 0.7 | 09/11/2026 | Critério de corte por número mínimo de palavras, fração cantada só registrada (3.2); ordem aleatória de conferência (3.3); falas, breques e interjeições (4.1); interjeições e equivalências de grafia na normalização (6.2) | Decisões da revisão do protocolo |

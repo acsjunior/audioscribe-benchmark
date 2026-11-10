@@ -21,17 +21,18 @@ Os resultados dessa fase serão arquivados e citados como estudo exploratório.
 
 ## Conjunto de dados
 
-- **Critério de inclusão**: gravação e composição em domínio público (gravação
-  até 1955; todos os autores falecidos até 1955 — em coautoria, conta o último
-  coautor vivo). Fonte de candidatas: filtro de domínio público da Discografia
-  Brasileira (IMS), a confirmar como o site calcula o ano de domínio público.
-- **Desenvolvimento (`dev`)**: as 28 músicas atuais que passarem no critério.
-  Usadas livremente para ajustar prompts e métodos.
-- **Teste (`test`)**: músicas novas, sorteadas (semente registrada) entre as
-  candidatas, com no máximo 3 por intérprete e equilíbrio por década. Mínimo de
-  32; ideal 40–45. Só rodadas uma vez, no final, com as configurações congeladas.
-- **Letra de referência**: transcrita/conferida contra a gravação, seguindo um
-  procedimento escrito único para todas as músicas (inclusive as 28 antigas).
+Definido no [PROTOCOLO](PROTOCOLO.md), seções 3 e 4. Em resumo:
+
+- **População**: gravações cantadas de gênero "Samba" de 1928 a 1955 (era da gravação
+  elétrica), em domínio público (gravação e todos os autores), com áudio na Discografia
+  Brasileira (IMS). Catálogo extraído em 10/11/2026 com o db-scraper.
+- **Amostra proporcional**, estratificada e balanceada por década, uma gravação por
+  composição; ordem de conferência sorteada (semente 20261110).
+- **Dev** = 25 primeiras posições da ordem; **teste** = as seguintes, até onde a
+  conferência chegar. Teste rodado uma única vez, com tudo congelado.
+- As 28 músicas da fase exploratória ficam fora (27 têm autor falecido depois de 1955).
+- **Letra de referência**: conferida contra a gravação por procedimento único
+  (PROTOCOLO, seção 4).
 
 ## Entregáveis
 
