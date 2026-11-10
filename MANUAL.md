@@ -768,7 +768,12 @@ uv run python -m benchmark confirm hipoteses.yaml
   `after: H1` só são testados se H1 for rejeitada, com correção de Holm entre eles. Se o
   "portão" fechar, aparecem como "não testada".
 - Saída: um resumo no terminal e `hipoteses.json` com ganho de Hodges–Lehmann e IC,
-  vitórias/empates/derrotas, p-valores (bruto e ajustado), WER do corpus e falhas.
+  vitórias/empates/derrotas, p-valores (bruto e ajustado), WER do corpus, falhas e taxa
+  de perdas graves com IC.
+- **Veredito**: "REJEITA H0" diz só que o teste deu significativo (é isso que abre o
+  portão de H2/H3). "CONFIRMADA" exige os três critérios do protocolo: teste
+  significativo, IC do ganho típico acima de zero e **sem dano líquido** (o IC do ganho
+  no WER do corpus não está todo abaixo de zero). Quando falta algum, o resumo diz qual.
 
 ---
 

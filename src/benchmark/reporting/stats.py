@@ -101,6 +101,14 @@ def wilcoxon_p(gains: np.ndarray) -> float | None:
         return None
 
 
+def proportion_ci(k: int, n: int, confidence: float) -> list[float] | None:
+    """Intervalo exato (Clopper–Pearson) para a proporção k/n."""
+    if n == 0:
+        return None
+    ci = scipy_stats.binomtest(k, n).proportion_ci(confidence_level=confidence, method="exact")
+    return [float(ci.low), float(ci.high)]
+
+
 def sign_test_p(wins: int, losses: int) -> float | None:
     if wins + losses == 0:
         return None
@@ -284,6 +292,7 @@ def _analyze_method(
         "corpus": corpus,
         "severe_failures": len(severe),
         "severe_failure_rate": len(severe) / len(gains),
+        "severe_failure_rate_ci": proportion_ci(len(severe), len(gains), config.confidence),
         "worst_cases": [
             {"song_id": song_id, "run": run, "gain": float(gain)}
             for (song_id, run), gain in worst

@@ -110,6 +110,10 @@ def confirm(contrasts_yaml: Path, output: Path | None) -> None:
             p = c["wilcoxon_p_adjusted"]
             p_txt = "—" if p is None else f"{p:.4f}"
             verdict = f"p ajustado {p_txt} → {'REJEITA H0' if c['rejected'] else 'não rejeita'}"
+            failed = [k for k, ok in c["criteria"].items() if not ok]
+            verdict += " · CONFIRMADA" if c["confirmed"] else (
+                f" · não confirmada (falhou: {', '.join(failed)})"
+            )
         click.echo(
             f"{c['name']}: ganho HL {c['gain_hl']:+.4f} {ci_txt} · "
             f"{c['wins']}/{c['ties']}/{c['losses']} · {c['num_songs']} músicas · {verdict}"

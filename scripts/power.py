@@ -19,8 +19,9 @@ Critérios simulados (PROTOCOLO 7.3):
 
 - ``H1``: Wilcoxon-Pratt bilateral com p < 0,05 (o IC de Hodges–Lehmann acima de zero
   acompanha de perto esse critério e não é simulado, por custo);
-- ``H1+falhas``: o anterior e, além disso, no máximo ``--max-severe`` das músicas com
-  piora maior que ``--severe`` (aproximação por música do critério de falhas graves);
+- ``H1 confirmada``: o anterior e, além disso, sem dano líquido demonstrado — aproximado
+  pelo limite superior do IC 95% (normal) do ganho médio >= 0, já que a simulação só tem
+  ganhos e não contagens de erros para o WER do corpus;
 - ``H2/H3``: p < 0,025 — o pior caso de Holm entre duas hipóteses depois de H1 (assume
   o mesmo δ para elas, o que é otimista se a diferença entre variantes for menor).
 
@@ -81,15 +82,16 @@ def wilcoxon_p(gains: np.ndarray) -> float:
 def simulate(
     noise: np.ndarray, tie_rate: float, effect: float, n: int, sims: int, args, rng
 ) -> dict:
-    hits = {"H1": 0, "H1+falhas": 0, "H2/H3": 0}
+    hits = {"H1": 0, "H1 confirmada": 0, "H2/H3": 0}
     for _ in range(sims):
         sample = rng.choice(noise, size=n, replace=True) + effect
         sample[rng.random(n) < tie_rate] = 0.0
         p = wilcoxon_p(sample)
         if p < 0.05:
             hits["H1"] += 1
-            if np.mean(sample < -args.severe) <= args.max_severe:
-                hits["H1+falhas"] += 1
+            upper = sample.mean() + 1.96 * sample.std(ddof=1) / np.sqrt(n)
+            if upper >= 0:
+                hits["H1 confirmada"] += 1
         if p < 0.025:
             hits["H2/H3"] += 1
     return {k: v / sims for k, v in hits.items()}
@@ -104,7 +106,6 @@ def main() -> None:
                         default=[20, 30, 40, 50, 60, 80, 100, 120])
     parser.add_argument("--sims", type=int, default=4000)
     parser.add_argument("--severe", type=float, default=0.2)
-    parser.add_argument("--max-severe", type=float, default=0.05)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--exclude-songs", nargs="*", default=[],
                         help="músicas fora do formato (ex.: falhas já tratadas como erro)")
@@ -131,10 +132,10 @@ def main() -> None:
     rng = np.random.default_rng(args.seed)
     for effect in args.effects:
         print(f"Efeito típico δ = {effect:+.3f}")
-        print(f"  {'músicas':>7}  {'H1':>6}  {'H1+falhas':>9}  {'H2/H3':>6}")
+        print(f"  {'músicas':>7}  {'H1':>6}  {'H1 confirmada':>13}  {'H2/H3':>6}")
         for n in args.sizes:
             r = simulate(noise, tie_rate, effect, n, args.sims, args, rng)
-            print(f"  {n:>7}  {r['H1']:>6.0%}  {r['H1+falhas']:>9.0%}  {r['H2/H3']:>6.0%}")
+            print(f"  {n:>7}  {r['H1']:>6.0%}  {r['H1 confirmada']:>13.0%}  {r['H2/H3']:>6.0%}")
         print()
 
 

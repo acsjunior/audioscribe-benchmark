@@ -1,6 +1,6 @@
 # Protocolo do Estudo
 
-**Status:** rascunho (v0.4, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
+**Status:** rascunho (v0.5, 09/11/2026). Os itens marcados **[PENDENTE]** precisam de
 decisão antes das execuções oficiais. Quando todos estiverem resolvidos, o protocolo é
 congelado (versão 1.0, com data e commit). A partir daí, qualquer mudança é registrada
 na seção 13, com justificativa, e reportada no trabalho.
@@ -346,16 +346,23 @@ exploratório.
 1. o Wilcoxon-Pratt rejeitar a hipótese nula a α = 0,05 (para H1, sem ajuste; para H2
    e H3, ajustado por Holm, depois de H1 rejeitada);
 2. o limite inferior do IC 95% do ganho de Hodges–Lehmann for maior que zero;
-3. **[EM DISCUSSÃO]** proteção contra falhas graves. A proposta inicial era um teto
-   fixo para a taxa de falhas graves (avaliações em que o WER piora mais de 0,2 em
-   relação ao rascunho), por exemplo 5%. A simulação de poder mostrou que um teto fixo
-   perto da taxa real vira cara ou coroa: com taxa real de ~5,6%, o critério passa em
-   ~50% das amostras **independentemente** do número de músicas. Alternativa proposta:
-   (a) o IC 95% do ganho no WER do corpus **não pode estar todo abaixo de zero** (sem
-   dano líquido demonstrado) e (b) a taxa de falhas graves é relatada com IC exato
-   (Clopper–Pearson), sem ser critério de corte.
+3. **sem dano líquido demonstrado**: o limite superior do IC 95% do ganho no WER do
+   corpus for maior ou igual a zero — isto é, o IC não pode estar todo abaixo de zero.
 
-A diferença no WER do corpus é sempre relatada com IC junto ao resultado de H1.
+O critério 3 protege contra o caso em que o método melhora pouco quase sempre e destrói
+algumas músicas: o ganho típico (critérios 1 e 2) não enxerga a magnitude dessas falhas,
+o WER do corpus enxerga. A alternativa inicial, um teto fixo para a taxa de falhas
+graves (ex.: 5%), foi descartada: a simulação de poder mostrou que um corte fixo perto da
+taxa real vira cara ou coroa (com taxa real de ~5,6%, o critério passava em ~50% das
+amostras independentemente do número de músicas). Um critério com incerteza estimada se
+estabiliza com mais músicas.
+
+A **taxa de falhas graves** (avaliações em que o WER piora mais de 0,2 em relação ao
+rascunho) é relatada com IC exato de Clopper–Pearson, sem ser critério de corte. A
+diferença no WER do corpus é sempre relatada com IC.
+
+O portão da sequência fixa (H2 e H3 só são testadas se H1 for rejeitada) usa apenas o
+critério 1; "hipótese confirmada" exige os três. `benchmark confirm` relata ambos.
 
 Também é relatado se o ganho de Hodges–Lehmann supera o **ruído entre rodadas** do baseline (desvio
 médio do WER entre rodadas da mesma música), para dar escala ao efeito.
@@ -456,6 +463,8 @@ causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio n�
 
 - Bisani, M.; Ney, H. (2004). Bootstrap estimates for confidence intervals in ASR
   performance evaluation. *ICASSP*.
+- Clopper, C. J.; Pearson, E. S. (1934). The use of confidence or fiducial limits
+  illustrated in the case of the binomial. *Biometrika*.
 - Benjamini, Y.; Hochberg, Y. (1995). Controlling the false discovery rate. *Journal of
   the Royal Statistical Society B*.
 - Hodges, J. L.; Lehmann, E. L. (1963). Estimates of location based on rank tests.
@@ -471,6 +480,7 @@ causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio n�
 | Versão | Data | Alteração | Motivo |
 |---|---|---|---|
 | 0.1 | 09/11/2026 | Rascunho inicial | — |
+| 0.5 | 09/11/2026 | Critério 3 (7.3): teto fixo de falhas graves trocado por "sem dano líquido demonstrado" no WER do corpus; taxa de falhas graves relatada com IC de Clopper–Pearson | Instabilidade do teto fixo na simulação de poder |
 | 0.4 | 09/11/2026 | Simulação de poder preliminar (3.3); critério de falhas graves revisto, em discussão (7.3) | Teto fixo de falhas graves se mostrou instável na simulação |
 | 0.3 | 09/11/2026 | Análise estatística decidida (7.3): Wilcoxon-Pratt + Hodges–Lehmann, WER do corpus como proteção contra dano, teste do sinal descritivo, sequência fixa H1 → {H2, H3 com Holm}, BH nas exploratórias | Discussão da adequação dos testes ao formato dos dados |
 | 0.2 | 09/11/2026 | H3 explicada; fração cantada medida no dev (3.2); tamanho do teste em aberto (3.3); exclusão por trechos duvidosos após a audição, antes da transcrição (4.1, 4.3); áudio anônimo (5, 10); distribuição completa no relatório (7.5); teste estatístico em discussão (7.3) | Revisão do rascunho |

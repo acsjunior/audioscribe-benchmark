@@ -126,3 +126,32 @@ def test_cli_confirm(results_file, tmp_path):
     assert "REJEITA H0" in result.output
     saved = json.loads((tmp_path / "hipoteses.json").read_text(encoding="utf-8"))
     assert [c["name"] for c in saved["contrasts"]] == ["H1", "H2"]
+
+
+def test_criteria_and_confirmation(results_file):
+    h1, h2 = run_contrasts(_config(results_file))["contrasts"]
+    assert h1["criteria"] == {"test": True, "effect_ci_above_zero": True, "no_net_harm": True}
+    assert h1["confirmed"]
+    assert h1["severe_loss_rate"] == 0
+    assert h1["severe_loss_rate_ci"][0] == 0
+    assert 0 < h1["severe_loss_rate_ci"][1] < 0.4
+
+
+def test_net_harm_blocks_confirmation(tmp_path):
+    rows = []
+    junk = TRUTH + " lixo" * 100  # 100 inserções numa letra de 10 palavras
+    for i in range(60):  # melhora pequena em 60 músicas...
+        rows += [row(f"s{i}", 1, errs(2)), row(f"s{i}", 1, errs(1), provider="openai", prompt="t")]
+    for i in range(60, 66):  # ...e destrói 6
+        rows += [row(f"s{i}", 1, errs(0)), row(f"s{i}", 1, junk, provider="openai", prompt="t")]
+    path = tmp_path / "r.json"
+    write_json(rows, path)
+    cfg = ContrastsConfig(
+        analysis={"bootstrap_samples": 500},
+        contrasts=[{"name": "H1", "reference": {"results": str(path), "method": "baseline"},
+                    "treatment": {"results": str(path), "method": "openai/m [t]"}}],
+    )
+    (h1,) = run_contrasts(cfg)["contrasts"]
+    assert h1["rejected"]  # o teste vê a música típica melhorar...
+    assert not h1["criteria"]["no_net_harm"]  # ...mas o total de erros piora
+    assert not h1["confirmed"]

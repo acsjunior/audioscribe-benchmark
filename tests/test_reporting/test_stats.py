@@ -409,3 +409,17 @@ def test_corpus_only_for_wer():
     m = method(analyze(dataset(baselines, methods, metric="bertscore"), ["bertscore"], CONFIG),
                metric="bertscore")
     assert m["corpus"] is None
+
+
+def test_proportion_ci_and_severe_rate_ci():
+    from benchmark.reporting.stats import proportion_ci
+
+    assert proportion_ci(0, 0, 0.95) is None
+    low, high = proportion_ci(0, 10, 0.95)
+    assert low == 0
+    assert high == pytest.approx(1 - 0.025 ** (1 / 10))  # Clopper–Pearson com k = 0
+    baselines = {f"s{i}": [0.30] for i in range(10)}
+    methods = {f"s{i}": [0.29] for i in range(9)} | {"s9": [0.90]}
+    m = method(analyze(dataset(baselines, methods), ["wer"], CONFIG))
+    assert m["severe_failure_rate"] == pytest.approx(0.1)
+    assert m["severe_failure_rate_ci"][0] < 0.1 < m["severe_failure_rate_ci"][1]

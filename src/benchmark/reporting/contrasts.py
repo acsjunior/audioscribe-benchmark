@@ -54,6 +54,7 @@ from .stats import (
     distribution,
     higher_is_better,
     hodges_lehmann,
+    proportion_ci,
     sign_test_p,
     wilcoxon_p,
 )
@@ -171,6 +172,7 @@ def _evaluate(contrast: Contrast, config: ContrastsConfig, cache: dict) -> dict:
             {s: (ref_e[s][0], trt_e[s][0], ref_e[s][1]) for s in common}, acfg
         )
 
+    severe_songs = int(np.sum(gains < -acfg.severe_failure_threshold))
     return {
         "name": contrast.name,
         "after": contrast.after,
@@ -188,7 +190,12 @@ def _evaluate(contrast: Contrast, config: ContrastsConfig, cache: dict) -> dict:
         "wins": wins,
         "ties": len(gains) - wins - losses,
         "losses": losses,
-        "songs_with_severe_loss": int(np.sum(gains < -acfg.severe_failure_threshold)),
+        "songs_with_severe_loss": severe_songs,
+        "severe_loss_rate": severe_songs / len(gains),
+        "severe_loss_rate_ci": proportion_ci(severe_songs, len(gains), acfg.confidence),
+        # Sem dano líquido demonstrado: o IC do ganho no WER do corpus não está todo
+        # abaixo de zero (critério 3 do PROTOCOLO 7.3).
+        "no_net_harm": corpus is None or corpus["gain_ci"] is None or corpus["gain_ci"][1] >= 0,
         "wilcoxon_p": wilcoxon_p(gains),
         "sign_test_p": sign_test_p(wins, losses),
         "corpus": corpus,
@@ -200,6 +207,21 @@ def _holm_family(rows: list[dict], alpha: float) -> None:
     for r, p in zip(rows, adjusted, strict=True):
         r["wilcoxon_p_adjusted"] = p
         r["rejected"] = p is not None and p < alpha
+        _verdict(r)
+
+
+def _verdict(r: dict) -> None:
+    """Critério de sucesso do PROTOCOLO 7.3: teste, IC do efeito e ausência de dano líquido.
+
+    O portão da sequência fixa usa só a rejeição pelo teste (``rejected``); ``confirmed``
+    exige os três critérios.
+    """
+    r["criteria"] = {
+        "test": bool(r["rejected"]),
+        "effect_ci_above_zero": bool(r["ci_excludes_zero"]),
+        "no_net_harm": bool(r["no_net_harm"]),
+    }
+    r["confirmed"] = r["tested"] and all(r["criteria"].values())
 
 
 def run_contrasts(config: ContrastsConfig) -> dict:
@@ -226,6 +248,7 @@ def run_contrasts(config: ContrastsConfig) -> dict:
             # Portão fechado: a família é relatada, mas não testada.
             for r in rows:
                 r.update(tested=False, rejected=False, wilcoxon_p_adjusted=None)
+                _verdict(r)
         children.extend(rows)
 
     return {

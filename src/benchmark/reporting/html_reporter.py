@@ -130,7 +130,7 @@ _TEMPLATE = """<!DOCTYPE html>
         <td class="num">{{ m.wins }} / {{ m.ties }} / {{ m.losses }}{% if m.sign_test_p is not none %} ({{ "%.4f" | format(m.sign_test_p) }}){% endif %}</td>
         <td class="num">{% if m.wilcoxon_p is none %}—{% else %}{{ "%.4f" | format(m.wilcoxon_p) }} ({{ "%.4f" | format(m.wilcoxon_p_holm) }}){% endif %}</td>
         <td class="num {% if m.corpus %}{{ sig(m.corpus.gain_sig) }}{% endif %}">{% if m.corpus %}{{ gain(m.corpus.gain) }} {{ ci(m.corpus.gain_ci) }}{% else %}—{% endif %}</td>
-        <td class="num">{{ m.severe_failures }} ({{ "%.1f" | format(m.severe_failure_rate * 100) }}%)</td>
+        <td class="num">{{ m.severe_failures }} ({{ "%.1f" | format(m.severe_failure_rate * 100) }}%{% if m.severe_failure_rate_ci %}; IC {{ "%.0f" | format(m.severe_failure_rate_ci[0] * 100) }}–{{ "%.0f" | format(m.severe_failure_rate_ci[1] * 100) }}%{% endif %})</td>
         <td>{% if m.worst_cases %}{{ m.worst_cases[0].song_id }} ({{ gain(m.worst_cases[0].gain) }}){% else %}—{% endif %}</td>
       </tr>
       {% endfor %}
