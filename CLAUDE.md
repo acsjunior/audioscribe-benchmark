@@ -1,12 +1,14 @@
 # AudioScribe Benchmark
 
+> **Ao iniciar uma sessão, leia [STATUS.md](STATUS.md)**: estado atual, decisões tomadas, pendências e próximos passos. Ao encerrar, atualize-o. Notas pessoais locais (não versionadas, o repositório é público) ficam em `notas/` — ver `notas/doutorado.md` (plano de doutorado em paralelo ao estudo).
+
 ## Objetivo
 
-Pipeline de benchmark para avaliar a melhor abordagem de transcrição de letras de sambas antigos em português. O pipeline lê um catálogo CSV, baixa os áudios do Google Drive, transcreve via API do Whisper, opcionalmente refina as transcrições com LLMs, e compara os resultados com as letras do catálogo usando métricas de acurácia.
+Pipeline de benchmark para avaliar a melhor abordagem de transcrição de letras de sambas antigos em português. O pipeline lê um catálogo CSV, baixa os áudios do Google Drive, transcreve (API de transcrição ou modelos multimodais), opcionalmente revisa ou confere as transcrições com LLMs, e compara os resultados com as letras do catálogo usando métricas de acurácia.
 
 **Domínio específico:** sambas antigos em português — vocabulário arcaico, gírias da época, qualidade de áudio inferior.
 
-**Foco principal:** entender se o refinamento com LLM melhora a acurácia e qual combinação de LLM + prompt produz os melhores resultados nesse contexto.
+**Foco principal (estudo em andamento, [PROTOCOLO.md](PROTOCOLO.md)):** um modelo multimodal que ouve a gravação e confere um rascunho automático (E7) produz letras mais fiéis que o rascunho? O ganho vem do áudio (vs. a mesma conferência sem áudio) e do método (vs. o mesmo modelo transcrevendo direto, E6)? A revisão só com texto, foco da fase exploratória, em geral piorou o WER.
 
 ---
 
@@ -40,7 +42,12 @@ Sambas antigos brasileiros das décadas de 1920-1950. Características relevante
 ```
 audioscribe-benchmark/
 ├── CLAUDE.md
+├── STATUS.md                 # estado atual, decisões, pendências e próximos passos (ler primeiro)
+├── PROTOCOLO.md              # metodologia do estudo (fonte das decisões)
+├── MANUAL.md                 # manual de uso
 ├── ROADMAP.md                # plano de entregáveis (E0–E9) rumo ao estudo acadêmico
+├── notas/                    # notas pessoais locais (no .gitignore)
+├── scripts/                  # amostragem, splits, fração cantada, poder estatístico
 ├── .env.example
 ├── .gitignore
 ├── pyproject.toml
@@ -51,6 +58,7 @@ audioscribe-benchmark/
 │       └── example.yaml      # modelo de configuração de bateria de testes
 ├── data/
 │   ├── catalogo.csv          # fonte única de verdade: metadados + letras + URLs
+│   ├── candidatas/           # catálogo extraído da Discografia Brasileira, revisão e ordem de amostragem
 │   ├── inputs/               # áudios baixados do Google Drive (não commitados)
 │   └── transcriptions/       # cache de transcrições por configuração e rodada (não commitado)
 ├── prompts/

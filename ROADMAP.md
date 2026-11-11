@@ -3,6 +3,8 @@
 Plano de evolução do benchmark de um estudo exploratório para um protocolo
 reproduzível, com vistas a um trabalho acadêmico.
 
+Estado atual, pendências e próximos passos: [STATUS.md](STATUS.md).
+
 ## Contexto
 
 A fase exploratória (maio/2026, 28 músicas, uma rodada por configuração) mostrou:
@@ -39,7 +41,7 @@ Definido no [PROTOCOLO](PROTOCOLO.md), seções 3 e 4. Em resumo:
 
 ### Fase 0 — Protocolo
 
-**E0. Protocolo do estudo** — 📝 rascunho em [PROTOCOLO.md](PROTOCOLO.md) (itens pendentes marcados)
+**E0. Protocolo do estudo** — 📝 rascunho v0.13 em [PROTOCOLO.md](PROTOCOLO.md). Amostragem feita (lista de 250 composições); faltam a conferência das letras, o mínimo de palavras e os itens que dependem do E3 e do piloto do E7
 Documento com hipóteses, métrica principal, análise estatística, critérios de
 inclusão, procedimento de conferência de letras, divisão dev/teste e registro de
 versões de modelos. Vira a seção de metodologia do trabalho.
@@ -69,8 +71,10 @@ fixa (PROTOCOLO 7.3).
 > falha é parte do E4.
 
 **E3. Remedir a linha de base** *(experimento)*
-`whisper-1`, `gpt-4o-transcribe` e `gpt-4o-transcribe` + `conservative`, com
-n=5, no conjunto dev. Define a referência a ser batida.
+`whisper-1` e `gpt-4o-transcribe`, com n=5, no novo dev (40 primeiras músicas
+incluídas). Define o baseline do estudo, o ruído entre rodadas e o ganho mínimo
+relevante (proposta: 10% de redução relativa do WER do corpus). Depende da
+conferência das letras do dev.
 
 **E4. Diagnóstico de tipos de erro** — ✅ concluído
 WER decomposto em substituições, omissões e inserções; razão de comprimento

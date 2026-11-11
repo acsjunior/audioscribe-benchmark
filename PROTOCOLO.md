@@ -1,6 +1,6 @@
 # Protocolo do Estudo
 
-**Status:** rascunho (v0.12, 10/11/2026). Os itens marcados **[PENDENTE]** precisam de
+**Status:** rascunho (v0.13, 11/11/2026). Os itens marcados **[PENDENTE]** precisam de
 decisão antes das execuções oficiais. Quando todos estiverem resolvidos, o protocolo é
 congelado (versão 1.0, com data e commit). A partir daí, qualquer mudança é registrada
 na seção 13, com justificativa, e reportada no trabalho.
@@ -470,8 +470,13 @@ critério 1; "hipótese confirmada" exige os três. `benchmark confirm` relata a
 Também é relatado se o ganho de Hodges–Lehmann supera o **ruído entre rodadas** do baseline (desvio
 médio do WER entre rodadas da mesma música), para dar escala ao efeito.
 
-**[PENDENTE]** Tamanho mínimo de efeito com relevância prática (proposta: ganho de
-Hodges–Lehmann de 0,02 de WER, cerca de 3 palavras numa letra mediana de 157 palavras).
+**[PENDENTE]** Tamanho mínimo de efeito com relevância prática. Proposta atual: **10% de
+redução relativa do WER do corpus do baseline**, fixada depois do E3 e relatada também
+em valor absoluto (com baseline de 0,20, o mínimo seria 0,02, cerca de 3 palavras numa
+letra mediana de 157). Motivos: é como a área de reconhecimento de fala reporta
+melhoria; ajusta-se à dificuldade real do acervo; se a discordância entre anotadores
+(4.4) passar desse valor, o resultado é lido com cautela. Proposta anterior: ganho de
+Hodges–Lehmann fixo de 0,02.
 
 ### 7.4 Falhas e dados ausentes
 
@@ -583,6 +588,7 @@ causada pelo filtro de conteúdo do `gpt-4o`); o pré-processamento de áudio n�
 | Versão | Data | Alteração | Motivo |
 |---|---|---|---|
 | 0.1 | 09/11/2026 | Rascunho inicial | — |
+| 0.13 | 11/11/2026 | Proposta do ganho mínimo relevante atualizada para 10% de redução relativa do WER do corpus do baseline, fixada depois do E3 (7.3); ainda pendente | Registro da discussão |
 | 0.12 | 10/11/2026 | Dev = 40 primeiras incluídas na ordem (antes: posições 1–25); teste = incluídas seguintes, meta 120, mínimo ~100; reposição da excluída pela próxima posição, sem escolha; split calculado da conferência (3.3) | Discussão do tamanho do dev e da regra de reposição |
 | 0.11 | 10/11/2026 | Revisão de 38 instrumentais confirmada; lista de amostragem gerada (250 composições) | Execução da amostragem |
 | 0.10 | 10/11/2026 | Amostra proporcional estratificada por década com ordem balanceada; sem limite por intérprete (revoga a decisão da v0.6); uma gravação por composição, sorteada; dev = 25 primeiras posições do mesmo pool; 28 músicas exploratórias fora; revisão manual de instrumentais; sensibilidade por intérprete (3.3) | Discussão da amostragem |

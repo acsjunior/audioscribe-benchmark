@@ -46,3 +46,6 @@ results/
 .idea/
 *.swp
 *.swo
+
+# Notas pessoais locais (repositório público)
+notas/

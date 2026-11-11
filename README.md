@@ -167,6 +167,7 @@ Os logs da execução ficam em `logs/`.
 - **[PROTOCOLO.md](PROTOCOLO.md)**: protocolo do estudo (hipóteses, dados, letras de
   referência, análise estatística)
 - **[ROADMAP.md](ROADMAP.md)**: plano de entregáveis
+- **[STATUS.md](STATUS.md)**: estado atual, decisões, pendências e próximos passos
 - **[CLAUDE.md](CLAUDE.md)**: arquitetura e decisões técnicas do código
 
 ## Desenvolvimento
