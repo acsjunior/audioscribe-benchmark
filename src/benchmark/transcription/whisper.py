@@ -6,6 +6,7 @@ from pathlib import Path
 from openai import AsyncOpenAI
 
 from ..audio_utils import anonymous_audio
+from ..usage import usage_record
 from .base import BaseTranscriber
 
 logger = logging.getLogger("benchmark")
@@ -57,6 +58,7 @@ class WhisperTranscriber(BaseTranscriber):
         self.model = model
         self.prompt = prompt
         self.client = AsyncOpenAI()
+        self.last_usage: dict | None = None
 
     def _effective_prompt(self) -> str | None:
         return effective_prompt(self.model, self.prompt)
@@ -76,5 +78,6 @@ class WhisperTranscriber(BaseTranscriber):
         )
 
         elapsed = (time.monotonic() - start) * 1000
+        self.last_usage = usage_record(getattr(response, "usage", None), elapsed)
         logger.debug(f"Transcription completed in {elapsed:.0f}ms")
         return _remove_hallucinations(response.text)

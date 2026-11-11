@@ -125,3 +125,36 @@ async def test_openai_audio_incomplete_responses(mock_cls, audio, finish, error)
 def test_registry_unknown_provider():
     with pytest.raises(ValueError, match="desconhecido"):
         get_multimodal_transcriber("anthropic", "x")
+
+
+@patch("benchmark.transcription.multimodal.AsyncOpenAI")
+async def test_openai_audio_records_usage(mock_cls, audio):
+    from openai.types import CompletionUsage
+
+    response = _openai_response()
+    response.usage = CompletionUsage(prompt_tokens=800, completion_tokens=60, total_tokens=860)
+    client = MagicMock()
+    client.chat.completions.create = AsyncMock(return_value=response)
+    mock_cls.return_value = client
+
+    transcriber = OpenAIAudioTranscriber()
+    await transcriber.transcribe(audio)
+
+    assert transcriber.last_usage["total_tokens"] == 860
+    assert transcriber.llm.last_usage is transcriber.last_usage
+
+
+@patch("benchmark.transcription.multimodal.genai.Client")
+async def test_gemini_records_usage(mock_client_cls, audio):
+    response = _gemini_response()
+    response.usage_metadata = {"prompt_token_count": 300, "candidates_token_count": 50,
+                               "total_token_count": 350}
+    client = MagicMock()
+    client.models.generate_content.return_value = response
+    mock_client_cls.return_value = client
+
+    transcriber = GeminiTranscriber()
+    await transcriber.transcribe(audio)
+
+    assert transcriber.last_usage["input_tokens"] == 300
+    assert transcriber.last_usage["total_tokens"] == 350

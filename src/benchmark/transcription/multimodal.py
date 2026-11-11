@@ -28,6 +28,7 @@ from openai import AsyncOpenAI
 from ..audio_utils import anonymous_audio
 from ..refinement.base import BlockedResponseError, TruncatedResponseError
 from ..refinement.google import BLOCKED_FINISH_REASONS
+from ..usage import as_usage, usage_record
 from .base import BaseTranscriber
 
 logger = logging.getLogger("benchmark")
@@ -71,6 +72,7 @@ class GeminiAudioLLM:
     def __init__(self, model: str) -> None:
         self.model = model
         self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY", ""))
+        self.last_usage: dict | None = None
 
     def _call_sync(self, text: str, audio_path: Path | None, system: str | None) -> str:
         parts = [types.Part(text=text)]
@@ -80,11 +82,13 @@ class GeminiAudioLLM:
         config = types.GenerateContentConfig(temperature=0.0)
         if system:
             config.system_instruction = system
+        start = time.monotonic()
         response = self.client.models.generate_content(
             model=self.model,
             contents=[types.Content(role="user", parts=parts)],
             config=config,
         )
+        elapsed = (time.monotonic() - start) * 1000
 
         finish = response.candidates[0].finish_reason if response.candidates else None
         name = finish.name if finish is not None else None
@@ -99,6 +103,7 @@ class GeminiAudioLLM:
         out = _clean(response.text)
         if not out:
             raise RuntimeError(f"Google {self.model} devolveu uma resposta vazia")
+        self.last_usage = usage_record(getattr(response, "usage_metadata", None), elapsed)
         return out
 
     async def complete(
@@ -115,6 +120,7 @@ class OpenAIAudioLLM:
     def __init__(self, model: str) -> None:
         self.model = model
         self.client = AsyncOpenAI()
+        self.last_usage: dict | None = None
 
     async def complete(
         self, text: str, audio_path: Path | None = None, system: str | None = None
@@ -127,6 +133,7 @@ class OpenAIAudioLLM:
         messages: list[dict] = [{"role": "system", "content": system}] if system else []
         messages.append({"role": "user", "content": content})
 
+        start = time.monotonic()
         response = await self.client.chat.completions.create(
             model=self.model,
             modalities=["text"],
@@ -134,6 +141,7 @@ class OpenAIAudioLLM:
             temperature=0.0,
             max_tokens=4096,
         )
+        elapsed = (time.monotonic() - start) * 1000
         choice = response.choices[0]
         if choice.finish_reason == "content_filter":
             raise BlockedResponseError(
@@ -146,6 +154,7 @@ class OpenAIAudioLLM:
         out = _clean(choice.message.content)
         if not out:
             raise RuntimeError(f"OpenAI {self.model} devolveu uma resposta vazia")
+        self.last_usage = usage_record(getattr(response, "usage", None), elapsed)
         return out
 
 
@@ -173,6 +182,7 @@ class _MultimodalTranscriber(BaseTranscriber):
         start = time.monotonic()
         text = await self.llm.complete(self.prompt, audio_path)
         logger.debug(f"Transcription completed in {(time.monotonic() - start) * 1000:.0f}ms")
+        self.last_usage = as_usage(getattr(self.llm, "last_usage", None))
         return text
 
 

@@ -19,6 +19,7 @@ from pathlib import Path
 import yaml
 
 from ..transcription.multimodal import get_audio_llm
+from ..usage import as_usage
 from .edits import EditOutcome, apply_edits, parse_edits
 from .segments import render, segment
 
@@ -68,6 +69,7 @@ class VerificationOutput:
     outcomes: list[EditOutcome]
     raw_response: str
     response_time_ms: float
+    usage: dict | None = None
     extra: dict = field(default_factory=dict)
 
     @property
@@ -101,6 +103,7 @@ class Verifier:
         start = time.monotonic()
         raw = await self.llm.complete(user, audio_path, system=self.prompt.system)
         elapsed = (time.monotonic() - start) * 1000
+        usage = as_usage(getattr(self.llm, "last_usage", None))
         edits = parse_edits(raw)
         text, outcomes = apply_edits(segments, edits)
         return VerificationOutput(
@@ -109,4 +112,5 @@ class Verifier:
             outcomes=outcomes,
             raw_response=raw,
             response_time_ms=elapsed,
+            usage=usage,
         )

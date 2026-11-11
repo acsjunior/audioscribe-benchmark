@@ -195,3 +195,21 @@ async def test_transcribe_sends_neutral_filename(mock_openai_cls, tmp_path):
     name, data = mock_client.audio.transcriptions.create.call_args.kwargs["file"]
     assert name == "audio.mp3"
     assert data == b"fake audio content"
+
+
+@patch("benchmark.transcription.whisper.AsyncOpenAI")
+async def test_transcribe_records_usage(mock_openai_cls, audio_file):
+    from openai.types.audio.transcription import UsageTokens
+
+    usage = UsageTokens(type="tokens", input_tokens=500, output_tokens=120, total_tokens=620)
+    mock_client = MagicMock()
+    mock_client.audio.transcriptions.create = AsyncMock(
+        return_value=MagicMock(text="letra", usage=usage)
+    )
+    mock_openai_cls.return_value = mock_client
+
+    transcriber = WhisperTranscriber(model="gpt-4o-transcribe")
+    await transcriber.transcribe(audio_file)
+
+    assert transcriber.last_usage["total_tokens"] == 620
+    assert transcriber.last_usage["response_time_ms"] is not None

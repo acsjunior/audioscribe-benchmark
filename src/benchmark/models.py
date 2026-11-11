@@ -40,6 +40,10 @@ class ExperimentResult:
     split: str = "dev"
     # Só na conferência com áudio (E7): rascunho, segmentos e destino de cada alteração.
     verification: dict | None = None
+    # Uso da chamada que produziu a linha (``benchmark.usage.usage_record``): no baseline,
+    # a transcrição (``cached: true`` se veio do cache; o uso é o da chamada original);
+    # na conferência, a chamada ao modelo multimodal. Ausente na revisão e no consenso.
+    usage: dict | None = None
 
     @property
     def evaluated_transcription(self) -> str:

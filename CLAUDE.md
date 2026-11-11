@@ -230,7 +230,7 @@ As transcrições variam entre execuções com a mesma configuração (o WER de 
 ```
 data/transcriptions/<modelo>__<pré-processamento|original>__<p+hash8 do prompt|noprompt>/
 ├── config.json              # modelo, prompt efetivo e pré-processamento
-└── <song_id>/run_01.json    # texto, run, sha256 do áudio, created_at, ...
+└── <song_id>/run_01.json    # texto, run, sha256 do áudio, usage, created_at, ...
 ```
 
 - A chave usa o **prompt efetivo** (`effective_prompt()` em `whisper.py`, que inclui o prompt padrão do `gpt-4o-transcribe`), então mudar o prompt, o modelo ou o pré-processamento gera um conjunto novo.
@@ -254,6 +254,9 @@ Bloco `verification:` (lista; uma entrada por variante): `provider` (`openai-aud
 - **Auditoria** (`reporting/edits.py`, chave `verification` do `stats.json`, seção "Conferência com Áudio" do HTML): falhas por tipo (bloqueio/formato/outras — saem da análise pareada, por isso ficam aqui), respostas sem alteração, propostas/aplicadas/motivos de rejeição, **precisão por alteração** (cada alteração aplicada sozinha sobre o rascunho: útil/neutra/prejudicial pelo WER) e alertas de reescrita (`analysis.max_change_fraction`, padrão 0,3).
 - **Comparações do estudo**: conferência vs. baseline; vs. E6 **do mesmo modelo** (efeito de conferir, além de ouvir melhor); vs. `audio: none` (efeito do áudio); com vs. sem metadados (memorização).
 - **Teste ao vivo** (`gpt-audio`, 2 músicas, rascunhos antigos): `alcides-gerardi-antonico` WER 0,089 → 0,041 (10 alterações, sem bloqueio); `francisco-alves-que-infeliz-sorte` 0,549 → 0,522. O modelo propôs uma alteração só de pontuação (proibida no prompt), nenhum `delete` no rascunho longo demais, e `heard` sempre "nitidamente X" — não é evidência. Ajustar o prompt no piloto (3 músicas dev) antes da bateria.
+
+### Registro de uso (custo por chamada)
+`usage.py::usage_record(raw, response_time_ms)` reduz o uso informado por cada provedor a um formato comum: `input_tokens`, `output_tokens`, `total_tokens`, `audio_seconds` (`whisper-1` devolve `type="duration"`), `response_time_ms` e `raw` (o original, com detalhamento por modalidade). Transcritores e clientes multimodais guardam o uso da última chamada bem-sucedida em `last_usage` (`BaseTranscriber.last_usage`, `GeminiAudioLLM`/`OpenAIAudioLLM.last_usage`); `as_usage()` ignora o que não for dicionário (dublês de teste). Destino: `run_XX.json` do cache (`usage`), linha de baseline (`tokens_used`, `response_time_ms`, `usage` com `cached`) e linha de conferência (`VerificationOutput.usage`). Revisão por texto e consenso não preenchem `usage` (a revisão já tem `tokens_used`). Não altera métricas nem análise; serve para comparar custo entre métodos (e para as frentes de pesquisa sobre orçamento).
 
 ### Áudio anônimo
 `audio_utils.py::anonymous_audio()` é o único caminho do áudio para as APIs: nome neutro (`audio.mp3`/`audio.wav`; a API de transcrição recebe o nome do arquivo no upload, que seria "Música - Intérprete.mp3") e MP3 sem tags ID3v2/ID3v1 (`strip_id3`). Usado por `WhisperTranscriber` (passa `file=(nome, bytes)`) e pelos clientes multimodais. Metadados só chegam ao modelo via `verification[].metadata: true`. Motivo: o estudo mede memorização comparando com/sem metadados (PROTOCOLO seção 10).

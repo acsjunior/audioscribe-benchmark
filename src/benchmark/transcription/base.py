@@ -3,5 +3,8 @@ from pathlib import Path
 
 
 class BaseTranscriber(ABC):
+    # Uso (tokens, tempo) da última chamada bem-sucedida; ver ``benchmark.usage``.
+    last_usage: dict | None = None
+
     @abstractmethod
     async def transcribe(self, audio_path: Path) -> str: ...

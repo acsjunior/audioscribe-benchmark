@@ -76,3 +76,14 @@ async def test_verify_malformed_response_raises(verifier):
     verifier.llm.complete.return_value = "Está tudo certo."
     with pytest.raises(EditParseError):
         await verifier.verify(DRAFT, None, None)
+
+
+async def test_verify_carries_the_call_usage(verifier):
+    verifier.llm.last_usage = {"total_tokens": 900, "response_time_ms": 1500}
+    out = await verifier.verify(DRAFT, None)
+    assert out.usage == {"total_tokens": 900, "response_time_ms": 1500}
+
+
+async def test_verify_without_usage(verifier):
+    out = await verifier.verify(DRAFT, None)  # dublê sem registro de uso
+    assert out.usage is None

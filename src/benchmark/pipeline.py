@@ -20,6 +20,7 @@ from .reporting.stats import analyze, write_stats_json
 from .transcription.cache import TranscriptionCache, file_sha256
 from .transcription.multimodal import get_multimodal_transcriber, multimodal_prompt
 from .transcription.whisper import WhisperTranscriber, effective_prompt
+from .usage import as_usage
 from .utils.retry import async_retry
 from .verification.verifier import Verifier, load_verification_prompt
 from .voice_isolation import isolate_voice
@@ -142,16 +143,21 @@ class Pipeline:
         audio_path: Path,
         audio_sha256: str | None,
         transcribe_fn: Callable,
-    ) -> str | None:
-        """Transcrição de uma rodada, do cache ou da API. Retorna None se falhar."""
+    ) -> tuple[str, dict | None] | None:
+        """Transcrição de uma rodada e o uso da chamada, do cache ou da API.
+
+        Do cache, o uso é o da chamada original, marcado com ``cached: true``.
+        Retorna None se a transcrição falhar.
+        """
         runs = self.config.transcription.runs
         prefix = f"  Rodada {run}/{runs}: " if runs > 1 else "  "
 
         if self.cache is not None:
-            cached = self.cache.load(song.song_id, run, audio_sha256)
-            if cached is not None:
+            entry = self.cache.load_entry(song.song_id, run, audio_sha256)
+            if entry is not None:
                 logger.info(f"{prefix}transcrição do cache")
-                return cached
+                usage = as_usage(entry.get("usage"))
+                return entry["text"], {**usage, "cached": True} if usage else None
 
         try:
             transcription = await transcribe_fn(audio_path)
@@ -160,10 +166,13 @@ class Pipeline:
             logger.error(f"{prefix}transcrição falhou após {attempts} tentativa(s): {e}")
             return None
 
+        usage = as_usage(getattr(self.transcriber, "last_usage", None))
         if self.cache is not None:
-            self.cache.save(song.song_id, run, transcription, audio_path, audio_sha256)
+            self.cache.save(
+                song.song_id, run, transcription, audio_path, audio_sha256, usage=usage
+            )
         logger.info(f"{prefix}transcrição concluída")
-        return transcription
+        return transcription, {**usage, "cached": False} if usage else None
 
     def _result(self, song: SongData, run: int, transcription: str, **kwargs) -> ExperimentResult:
         defaults = {
@@ -285,7 +294,9 @@ class Pipeline:
                     song, run, transcriptions[run],
                     refined_transcription=out.text,
                     metrics=self._compute_metrics(out.text, song.ground_truth),
+                    tokens_used=out.usage.get("total_tokens") if out.usage else None,
                     response_time_ms=out.response_time_ms,
+                    usage=out.usage,
                     verification={
                         "draft_kind": vcfg.draft,
                         "audio": vcfg.audio,
@@ -341,16 +352,20 @@ class Pipeline:
 
             transcriptions: dict[int, str] = {}
             for run in range(1, runs + 1):
-                transcription = await self._transcribe_run(
+                transcribed = await self._transcribe_run(
                     song, run, audio_path, audio_sha256, transcribe_fn
                 )
-                if transcription is None:
+                if transcribed is None:
                     continue
+                transcription, usage = transcribed
                 transcriptions[run] = transcription
 
                 all_results.append(self._result(
                     song, run, transcription,
                     metrics=self._compute_metrics(transcription, song.ground_truth),
+                    tokens_used=usage.get("total_tokens") if usage else None,
+                    response_time_ms=usage.get("response_time_ms") if usage else None,
+                    usage=usage,
                 ))
 
                 for j, (ref_config, refiner, prompt) in enumerate(refiners, 1):

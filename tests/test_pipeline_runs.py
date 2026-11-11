@@ -430,3 +430,38 @@ async def test_verification_consensus_draft_and_isolated_audio(
 def test_consensus_draft_requires_three_runs():
     with pytest.raises(ValueError, match="draft: consensus"):
         _verify_config(Path("."), runs=2, draft="consensus")
+
+
+def _transcriber_with_usage():
+    t = MagicMock()
+    t.last_usage = None
+
+    async def transcribe(path):
+        t.last_usage = {"total_tokens": 620, "response_time_ms": 2000}
+        return "as rosas nao falam"
+
+    t.transcribe = AsyncMock(side_effect=transcribe)
+    return t
+
+
+@patch("benchmark.pipeline.load_catalog")
+@patch("benchmark.pipeline.WhisperTranscriber")
+async def test_baseline_rows_record_transcription_usage(mock_cls, mock_catalog, tmp_path):
+    from benchmark.reporting.json_reporter import read_json
+
+    mock_catalog.return_value = [_song(tmp_path)]
+    mock_cls.return_value = _transcriber_with_usage()
+    run_dir = await Pipeline(_config(tmp_path, runs=2)).run()
+
+    rows = _rows(run_dir)
+    assert [r["tokens_used"] for r in rows] == ["620", "620"]
+    results = read_json(run_dir / "results.json")
+    assert results[0].usage == {"total_tokens": 620, "response_time_ms": 2000, "cached": False}
+
+    # Segunda execução: do cache, com o uso da chamada original marcado como cached.
+    mock_cls.return_value = t2 = _transcriber_with_usage()
+    run_dir = await Pipeline(_config(tmp_path, runs=2)).run()
+    assert t2.transcribe.call_count == 0
+    results = read_json(run_dir / "results.json")
+    assert all(r.usage["cached"] is True for r in results)
+    assert results[0].usage["total_tokens"] == 620

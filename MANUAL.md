@@ -622,9 +622,17 @@ Colunas principais:
 | `prompt_name` | Nome do prompt |
 | `prompt_file` | Caminho do arquivo de prompt |
 | `wer` / `cer` / `bertscore` | Scores das métricas |
-| `tokens_used` | Total de tokens consumidos |
+| `tokens_used` | Total de tokens consumidos: da transcrição (linhas de baseline), da revisão ou da conferência |
 | `response_time_ms` | Tempo de resposta da API em ms |
 | `error` | Mensagem de erro, se houver |
+
+O `results.json` traz, nas linhas de baseline e de conferência, o campo `usage` com o
+custo detalhado da chamada: `input_tokens`, `output_tokens`, `total_tokens`,
+`audio_seconds` (o `whisper-1` informa a duração do áudio em vez de tokens),
+`response_time_ms` e `raw` (o registro original do provedor, com tokens de áudio e de
+texto separados quando ele informa). No baseline, `cached: true` indica que a
+transcrição veio do cache; o uso registrado é o da chamada original. Transcrições
+salvas antes desse registro não têm `usage`.
 
 ### 8.3 Entendendo o baseline
 

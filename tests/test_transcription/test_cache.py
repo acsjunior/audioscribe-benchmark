@@ -61,3 +61,16 @@ def test_load_ignores_entry_when_audio_changed(tmp_path):
 
     audio.write_bytes(b"outro audio")
     assert cache.load("song", 1, file_sha256(audio)) is None
+
+
+def test_usage_is_saved_with_the_entry(tmp_path):
+    audio = tmp_path / "a.mp3"
+    audio.write_bytes(b"audio")
+    sha = file_sha256(audio)
+    cache = _cache(tmp_path)
+    cache.save("song", 1, "texto", audio, sha, usage={"total_tokens": 620})
+    cache.save("song", 2, "texto", audio, sha)
+
+    assert cache.load_entry("song", 1, sha)["usage"] == {"total_tokens": 620}
+    assert cache.load_entry("song", 2, sha)["usage"] is None
+    assert cache.load_entry("song", 1, "outro-sha") is None

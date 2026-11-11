@@ -65,7 +65,8 @@ class TranscriptionCache:
             encoding="utf-8",
         )
 
-    def load(self, song_id: str, run: int, audio_sha256: str) -> str | None:
+    def load_entry(self, song_id: str, run: int, audio_sha256: str) -> dict | None:
+        """Entrada completa da rodada (texto, uso da chamada original...), ou None."""
         path = self._path(song_id, run)
         if not path.exists():
             return None
@@ -75,10 +76,20 @@ class TranscriptionCache:
                 f"  Cache ignorado ({song_id}, rodada {run}): o arquivo de áudio mudou"
             )
             return None
-        return data["text"]
+        return data
+
+    def load(self, song_id: str, run: int, audio_sha256: str) -> str | None:
+        entry = self.load_entry(song_id, run, audio_sha256)
+        return entry["text"] if entry is not None else None
 
     def save(
-        self, song_id: str, run: int, text: str, audio_path: Path, audio_sha256: str
+        self,
+        song_id: str,
+        run: int,
+        text: str,
+        audio_path: Path,
+        audio_sha256: str,
+        usage: dict | None = None,
     ) -> None:
         self._write_manifest()
         path = self._path(song_id, run)
@@ -94,6 +105,7 @@ class TranscriptionCache:
                     "audio_preprocessing": self.preprocessing,
                     "audio_file": audio_path.name,
                     "audio_sha256": audio_sha256,
+                    "usage": usage,
                     "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
                 },
                 ensure_ascii=False,
