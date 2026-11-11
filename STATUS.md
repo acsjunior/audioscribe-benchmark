@@ -17,7 +17,7 @@ seguir. Ao fechar uma sessão, atualizar este arquivo.
 
 - **Ferramenta pronta** (E1, E2, E4 concluídos; E5, E6, E7 implementados e ainda não
   medidos em dados reais). 299 testes passando.
-- **Protocolo v0.12** em rascunho avançado, com poucos itens pendentes (seção 3).
+- **Protocolo v0.13** em rascunho avançado, com poucos itens pendentes (seção 3).
 - **Amostra definida**: lista de 250 composições em ordem sorteada
   ([ordem_amostragem.csv](data/candidatas/ordem_amostragem.csv), semente 20261110).
   Nenhuma letra conferida ainda.
